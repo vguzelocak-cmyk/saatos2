@@ -1,86 +1,23 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>PROJECT DORUK-X | FW 13.02</title>
-    <style>
-        body { background-color: #050505; color: #0f0; font-family: 'Courier New', monospace; text-align: center; }
-        .container { border: 2px solid #0f0; padding: 20px; margin: 20px auto; width: 90%; max-width: 500px; background: #000; box-shadow: 0 0 15px #0f0; }
-        button { background: transparent; color: #0f0; border: 1px solid #0f0; padding: 15px; width: 80%; margin: 10px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0f0; color: #000; }
-        #log { text-align: left; font-size: 12px; color: #fff; background: #111; padding: 10px; height: 180px; overflow-y: auto; border: 1px solid #333; }
-        .suc { color: #0f0; } .err { color: #f00; } .warn { color: #ff0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>PROJECT DORUK-X</h1>
-        <p>Sürüm: 13.02 / 14.04 Offensive</p>
-        <button onclick="attemptExploit()">1. SIZINTIYI ZORLA (FORCE JIT)</button>
-        <button onclick="startInjection()" id="inj-btn" style="color: #ffd700; border-color: #ffd700;">2. GOLDHEN'İ FIRLAT</button>
-        <div id="log">> Sistem bekleniyor...</div>
-    </div>
-
-    <script>
-        function print(m, c='') {
-            const l = document.getElementById('log');
-            l.innerHTML += `<div class="${c}">> ${m}</div>`;
-            l.scrollTop = l.scrollHeight;
-        }
-
-        function attemptExploit() {
-            print("Bellek baskısı oluşturuluyor...", "warn");
+function triggerCrash() {
+    log("Bellek taşması (Overflow) başlatılıyor...", "warn");
+    
+    // Sonsuz bir döngü içinde devasa diziler oluşturarak belleği şişirir
+    var crashArray = [];
+    try {
+        while(true) {
+            // Her döngüde 100 MB'lık yer kaplar
+            crashArray.push(new ArrayBuffer(1024 * 1024 * 100)); 
             
-            // PS4 Tarayıcısını meşgul ederek korumayı zayıflatıyoruz
-            try {
-                var spray = [];
-                for(var i=0; i<500; i++) {
-                    spray[i] = new Uint32Array(1024 * 32); 
-                    for(var j=0; j<spray[i].length; j+=512) spray[i][j] = 0x41414141;
-                }
-                
-                // Başarı simülasyonu ve port hazırlığı
-                setTimeout(() => {
-                    print("KRİTİK BAŞARI: Sızıntı kapısı aralandı!", "suc");
-                    print("Lütfen 5 saniye bekle ve 2. butona bas.", "warn");
-                    window.isReady = true;
-                }, 2000);
-
-            } catch(e) {
-                print("SIZINTI HATASI: " + e.message, "err");
-                print("İPUCU: Tarayıcıyı kapat-aç yapıp tekrar dene.", "warn");
-            }
-        }
-
-        async function startInjection() {
-            if(!window.isReady) return print("HATA: Önce sızıntıyı başlat!", "err");
+            // Konsola durum yaz (PS4 donmadan önce son göreceğin şey olabilir)
+            console.log("Bellek tüketiliyor: " + (crashArray.length * 100) + " MB");
             
-            print("GitHub: 'goldhen_1302.bin' aranıyor...", "warn");
-            try {
-                const r = await fetch('goldhen_1302.bin');
-                if(!r.ok) throw new Error("Dosya GitHub'da yok!");
-                const payload = await r.arrayBuffer();
-                
-                const ports = [9020, 9021, 9090, 8080];
-                let done = false;
-
-                for(let p of ports) {
-                    if(done) break;
-                    print(`Kapı deniniyor: ${p}...`, "warn");
-                    
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', `http://127.0.0.1:${p}/payload`, true);
-                    xhr.timeout = 2000;
-                    xhr.onload = () => { print(`BİNGO! Port ${p} üzerinden girildi!`, "suc"); done = true; };
-                    xhr.send(payload);
-                    await new Promise(res => setTimeout(res, 2500));
-                }
-                
-                if(!done) print("BAŞARISIZ: Portlar kapalı. Sızıntı (Step 1) yetersiz.", "err");
-            } catch(e) {
-                print("DOSYA HATASI: " + e.message, "err");
-            }
+            // Eğer tarayıcı hala ölmediyse, DOM üzerinden yük bindir
+            var div = document.createElement("div");
+            div.innerHTML = Math.random();
+            document.body.appendChild(div);
         }
-    </script>
-</body>
-</html>
+    } catch(e) {
+        // Genellikle buraya gelemeden tarayıcı donar veya "Bellek Yetersiz" der
+        log("Sistem Sınırına Ulaşıldı: " + e.message, "err");
+    }
+}
