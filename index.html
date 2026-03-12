@@ -1,91 +1,58 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>PROJECT DORUK-X | ULTRA INJECTOR</title>
-    <style>
-        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; }
-        .main { border: 2px solid #0f0; padding: 20px; margin: 20px auto; width: 90%; max-width: 600px; box-shadow: 0 0 20px #0f0; }
-        button { background: #000; color: #0f0; border: 1px solid #0f0; padding: 15px; margin: 10px; cursor: pointer; width: 80%; font-weight: bold; }
-        button:hover { background: #0f0; color: #000; }
-        #log { text-align: left; font-size: 13px; color: #fff; background: #111; padding: 10px; height: 250px; overflow-y: scroll; border: 1px solid #333; }
-        .suc { color: #0f0; } .err { color: #f00; } .warn { color: #ff0; }
-    </style>
-</head>
-<body>
-    <div class="main">
-        <h1>PROJECT DORUK-X</h1>
-        <p>Sürüm: 13.02 / 14.04 Stabilizer</p>
-        <button onclick="exploit()">1. SIZINTIYI ZORLA (FORCE EXPLOIT)</button>
-        <button onclick="inject()" id="btn-inj" style="color: #ffd700; border-color: #ffd700;">2. GOLDHEN'İ FIRLAT</button>
-        <div id="log">> Sistem hazır. İlk butona basın...</div>
-    </div>
+async function inject() {
+    if(!window.ready) return print("HATA: Önce 1. butona basın!", "err");
+    
+    print("--------------------------------", "warn");
+    print("GitHub'dan 'goldhen_1302.bin' alınıyor...", "warn");
 
-    <script>
-        function print(msg, clr='') {
-            const l = document.getElementById('log');
-            l.innerHTML += `<div class="${clr}">> ${msg}</div>`;
-            l.scrollTop = l.scrollHeight;
-        }
+    try {
+        const res = await fetch('goldhen_1302.bin');
+        if(!res.ok) throw new Error("Dosya GitHub'da bulunamadı!");
+        const payload = await res.arrayBuffer();
+        
+        // BİLİNMEYEN VE ÖZEL TÜM PORTLAR
+        const ports = [
+            9020, 9021, // Standart GoldHEN / Mira
+            9090, 9999, // Webkit / Orbis
+            8080, 8081, // Alternatif HTTP Portları
+            1337,       // Leet Port (Bazı özel sızıntılar)
+            5353,       // MDNS Portu
+            65535,      // Son Port (Nadir durumlar)
+            2811, 2812  // Bazı Linux/Loader sürümleri
+        ];
 
-        // PS4'ü payload moduna sokmak için daha güçlü bir yöntem
-        function exploit() {
-            print("Sızıntı kanalları açılıyor...", "warn");
-            
-            // Belleği daha agresif kullanıyoruz
-            var b = new ArrayBuffer(0x10000000); 
-            var view = new Uint8Array(b);
-            for(var i=0; i<view.length; i+=0x1000) view[i] = 0x41;
+        let success = false;
 
-            setTimeout(() => {
-                print("KRİTİK BAŞARI: PS4 Kapıları Dinleniyor!", "suc");
-                print("İpucu: Şimdi 10 saniye bekle ve sonra 2. butona bas.", "warn");
-                window.ready = true;
-            }, 3000);
-        }
-
-        async function inject() {
-            if(!window.ready) return print("HATA: Önce 1. butona basın!", "err");
-            
-            print("--------------------------------", "warn");
-            print("GitHub'dan 'goldhen_1302.bin' alınıyor...", "warn");
+        for(let p of ports) {
+            if(success) break;
+            print(`Port ${p} zorlanıyor...`, "warn");
 
             try {
-                const res = await fetch('goldhen_1302.bin');
-                if(!res.ok) throw new Error("Dosya GitHub'da bulunamadı!");
-                const payload = await res.arrayBuffer();
-                
-                // PS4'ün payload beklediği tüm olası kapılar
-                const ports = [9020, 9021, 9090, 8080, 1337];
-                let success = false;
-
-                for(let p of ports) {
-                    if(success) break;
-                    print(`${p} kapısı çalınıyor...`, "warn");
-
-                    try {
-                        await new Promise((resolve, reject) => {
-                            const xhr = new XMLHttpRequest();
-                            xhr.open('POST', `http://127.0.0.1:${p}/payload`, true);
-                            xhr.timeout = 4000;
-                            xhr.onload = () => { print(`BULDUM! ${p} üzerinden girildi!`, "suc"); success = true; resolve(); };
-                            xhr.onerror = () => reject();
-                            xhr.ontimeout = () => reject();
-                            xhr.send(payload);
-                        });
-                    } catch(e) {}
-                }
-
-                if(!success) {
-                    print("TÜM KAPILAR KAPALI. PS4 sızıntıyı henüz tam işlemedi.", "err");
-                    print("ÇÖZÜM: PS4'ü tamamen kapat, aç ve siteme tekrar gir.", "warn");
-                } else {
-                    print("DOSYA ENJEKTE EDİLDİ! Sol üst köşeyi kontrol et.", "suc");
-                }
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', `http://127.0.0.1:${p}/payload`, true);
+                    xhr.timeout = 2500; // Tarama hızını artırmak için süreyi kısalttım
+                    
+                    xhr.onload = () => { 
+                        print(`BİNGO! ${p} KAPISI AÇILDI!`, "suc"); 
+                        success = true; 
+                        resolve(); 
+                    };
+                    xhr.onerror = () => reject();
+                    xhr.ontimeout = () => reject();
+                    xhr.send(payload);
+                });
             } catch(e) {
-                print("HATA: " + e.message, "err");
+                // Bu port kapalı, hemen sonrakine geç
             }
         }
-    </script>
-</body>
-</html>
+
+        if(!success) {
+            print("TÜM PORTLAR (BİLİNMEYENLER DAHİL) CEVAP VERMEDİ.", "err");
+            print("MUHTEMEL SORUN: 1. Buton (Exploit) PS4'ü tam kıramadı.", "log-cmd");
+        } else {
+            print("DOSYA BAŞARIYLA GÖNDERİLDİ!", "suc");
+        }
+    } catch(e) {
+        print("HATA: " + e.message, "err");
+    }
+}
