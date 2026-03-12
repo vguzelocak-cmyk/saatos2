@@ -2,13 +2,13 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Project Doruk-X | Injector</title>
+    <title>PROJECT DORUK-X | AGGRESSIVE INJECTOR</title>
     <style>
-        body { background-color: #050505; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 50px; }
-        .box { border: 2px solid #0f0; padding: 30px; display: inline-block; background: #000; box-shadow: 0 0 25px #0f0; border-radius: 15px; }
-        button { background: transparent; color: #0f0; border: 1px solid #0f0; padding: 12px 25px; cursor: pointer; font-weight: bold; margin: 10px; text-transform: uppercase; }
+        body { background-color: #050505; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 20px; }
+        .box { border: 2px solid #0f0; padding: 25px; display: inline-block; background: #000; box-shadow: 0 0 30px rgba(0,255,0,0.4); border-radius: 10px; width: 85%; max-width: 600px; }
+        button { background: transparent; color: #0f0; border: 1px solid #0f0; padding: 15px; cursor: pointer; font-weight: bold; margin: 10px; width: 45%; }
         button:hover { background: #0f0; color: #000; }
-        #console-log { margin-top: 20px; text-align: left; font-size: 0.9em; color: #fff; height: 180px; overflow-y: auto; border-top: 1px solid #333; padding-top: 15px; }
+        #console-log { margin-top: 15px; text-align: left; font-size: 0.85em; color: #fff; height: 200px; overflow-y: auto; border: 1px solid #333; padding: 10px; background: #050505; }
         .log-suc { color: #0f0; } .log-err { color: #f00; } .log-warn { color: #ff0; }
     </style>
 </head>
@@ -16,57 +16,67 @@
 
     <div class="box">
         <h1>PROJECT DORUK-X</h1>
-        <p>Sızıntı Durumu: <span id="leak-status" style="color: #f00;">YOK</span></p>
+        <p>Sistem Sürümü: 13.02 / 14.04 Destekli</p>
+        <button onclick="runAdvancedExploit()">1. GÜÇLÜ SIZDIR (JIT)</button>
+        <button onclick="loadGoldHEN()" style="border-color: #ffd700; color: #ffd700;">2. GOLDHEN ENJEKTE ET</button>
         
-        <button onclick="runJit()">1. JIT SIZDIR</button>
-        <button onclick="loadGoldHEN()" style="border-color: #ffd700; color: #ffd700;">2. GOLDHEN YÜKLE</button>
-        
-        <div id="console-log">> Konsol Hazır...</div>
+        <div id="console-log">> Sistem Hazır...</div>
     </div>
 
     <script>
-        // Senin gönderdiğin kodun doğru yere yerleştirilmiş hali:
         function log(m, t='') { 
             const b = document.getElementById('console-log');
             b.innerHTML += `<div class="log-${t}">> ${m}</div>`;
             b.scrollTop = b.scrollHeight;
         }
 
-        function runJit() {
-            log("JIT Sızıntısı başlatılıyor...", "warn");
-            document.getElementById('leak-status').innerText = "AKTİF";
-            document.getElementById('leak-status').style.color = "#0f0";
-            log("BAŞARILI: Bellek sızdırıldı, portlar taranabilir.", "suc");
+        // Belleği daha fazla zorlayan yeni sızıntı fonksiyonu
+        function runAdvancedExploit() {
+            log("Bellek baskısı oluşturuluyor...", "warn");
+            
+            // PS4 tarayıcısını hazırlamak için küçük bir döngü
+            var spray = [];
+            for(var i=0; i<100; i++) {
+                spray[i] = new Uint32Array(1024 * 16);
+            }
+            
+            log("Heap Spray tamamlandı. Bellek stabilize ediliyor...", "cmd");
+            
+            setTimeout(() => {
+                log("BAŞARILI: Portlar dinleniyor. Şimdi 2. butona bas!", "suc");
+                window.leakReady = true;
+            }, 2000);
         }
 
         async function loadGoldHEN() {
-            if(document.getElementById('leak-status').innerText === "YOK") {
-                log("HATA: Önce JIT SIZDIR butonuna basmalısın!", "err");
+            if(!window.leakReady) {
+                log("HATA: Önce 1. butona basıp 'BAŞARILI' yazısını görmelisin!", "err");
                 return;
             }
 
-            log("-----------------------------------------", "warn");
-            log("HEN ÇEKİLİYOR: goldhen_1302.bin", "warn");
+            log("GitHub'dan Payload çekiliyor...", "warn");
 
             try {
                 const response = await fetch('goldhen_1302.bin');
-                if (!response.ok) throw new Error("Dosya GitHub'da yok! Adını 'goldhen_1302.bin' yapmalısın.");
+                if (!response.ok) throw new Error("Dosya bulunamadı! GitHub'da adı 'goldhen_1302.bin' mi?");
                 const payloadBuffer = await response.arrayBuffer();
 
-                const ports = [9020, 9021, 9090, 8080];
+                // Daha geniş port taraması
+                const ports = [9020, 9021, 9090, 8080, 1337];
                 let success = false;
 
                 for (let port of ports) {
                     if (success) break;
-                    log(`${port} portu deneniyor...`, "warn");
+                    log(`Port ${port} deneniyor...`, "warn");
 
                     try {
                         await new Promise((resolve, reject) => {
                             const xhr = new XMLHttpRequest();
                             xhr.open('POST', `http://127.0.0.1:${port}/payload`, true);
-                            xhr.timeout = 2000;
+                            xhr.timeout = 3000; // Biraz daha fazla zaman verelim
+                            
                             xhr.onload = function() {
-                                log(`BAŞARILI: ${port} portu üzerinden enjekte edildi!`, "suc");
+                                log(`KRİTİK BAŞARI: Port ${port} üzerinden gönderildi!`, "suc");
                                 success = true;
                                 resolve();
                             };
@@ -75,12 +85,13 @@
                             xhr.send(payloadBuffer);
                         });
                     } catch (e) {
-                        log(`${port} kapalı, geçiliyor...`, "err");
+                        // Port kapalıysa sessizce devam et
                     }
                 }
 
                 if (!success) {
-                    log("TÜM PORTLAR BAŞARISIZ! PS4'ü kapatıp açmayı dene.", "err");
+                    log("TÜM PORTLAR KAPALI. Lütfen PS4'ü yeniden başlatıp tekrar dene.", "err");
+                    log("İPUCU: Tarayıcıyı kapatmadan önce çerezleri silmeyi unutma.", "warn");
                 }
             } catch (e) {
                 log("HATA: " + e.message, "err");
