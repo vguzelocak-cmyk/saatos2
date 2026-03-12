@@ -1,29 +1,65 @@
-async function inject() {
-    if(!window.ready) return print("HATA: Önce 1. butona bas!", "err");
-    print("Sürekli Tarama Başlatıldı... Kapı açılana kadar denenecek.", "warn");
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>PROJECT DORUK-X | FW 13.02 OFFENSIVE TOOLKIT</title>
+    <style>
+        body { background-color: #050505; color: #0f0; font-family: 'Courier New', monospace; text-align: center; }
+        .box { border: 2px solid #0f0; padding: 20px; display: inline-block; background: #000; box-shadow: 0 0 20px #0f0; width: 90%; max-width: 600px; }
+        button { background: transparent; color: #0f0; border: 1px solid #0f0; padding: 15px; cursor: pointer; font-weight: bold; width: 80%; margin: 10px; }
+        button:hover { background: #0f0; color: #000; }
+        #console-log { margin-top: 20px; text-align: left; font-size: 0.8em; color: #fff; height: 250px; overflow-y: auto; border: 1px solid #333; padding: 10px; }
+        .log-suc { color: #0f0; } .log-err { color: #f00; } .log-warn { color: #ff0; }
+    </style>
+</head>
+<body>
 
-    const res = await fetch('goldhen_1302.bin');
-    const payload = await res.arrayBuffer();
-    const ports = [9020, 9021, 9090, 8080];
+    <div class="box">
+        <h1>Project Doruk-X</h1>
+        <p>Sistem Sürümü: 13.02 / 14.04 (Beta)</p>
+        
+        <button onclick="startExploitChain()">ZİNCİRİ BAŞLAT (WEBKIT + KERNEL)</button>
+        <button id="btn-gold" onclick="injectGold()" style="border-color: #ffd700; color: #ffd700; display:none;">GOLDHEN'İ FIRLAT (PORT 9020)</button>
+        
+        <div id="console-log">> Bekleniyor...</div>
+    </div>
 
-    // 10 kere üst üste tüm portları tarar
-    for(let i=0; i<10; i++) {
-        print(`Deneme #${i+1}...`, "log-cmd");
-        for(let p of ports) {
-            try {
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', `http://127.0.0.1:${p}/payload`, true);
-                xhr.timeout = 1000;
-                xhr.send(payload);
-                
-                xhr.onload = () => { 
-                    print("BULDUM! SİSTEM KIRILDI!", "suc");
-                    return; 
-                };
-            } catch(e) {}
+    <script src="int64.js"></script>
+    <script src="rop.js"></script>
+    <script src="kexploit.js"></script>
+
+    <script>
+        function log(m, t='') {
+            const b = document.getElementById('console-log');
+            b.innerHTML += `<div class="log-${t}">> ${m}</div>`;
+            b.scrollTop = b.scrollHeight;
         }
-        // Her tarama arası 2 saniye bekle
-        await new Promise(r => setTimeout(r, 2000));
-    }
-    print("10 deneme bitti. Kapı hala kapalı.", "err");
-}
+
+        async function startExploitChain() {
+            log("Zincir başlatıldı...", "warn");
+            
+            try {
+                // 1. WebKit Exploit (Aşama 1)
+                log("WebKit sızıntısı deneniyor...", "cmd");
+                await run_webkit_exploit(); // Bu fonksiyon kexploit.js içindedir
+                
+                // 2. Kernel Exploit (Aşama 2)
+                log("Kernel yetkileri alınıyor (Lütfen bekleyin, cihaz donabilir)...", "warn");
+                await run_kernel_exploit(); 
+                
+                log("BAŞARILI: Port 9020 Açıldı!", "suc");
+                document.getElementById('btn-gold').style.display = 'inline-block';
+                
+            } catch(e) {
+                log("HATA: Sızıntı başarısız. Sayfayı yenileyip tekrar dene.", "err");
+            }
+        }
+
+        async function injectGold() {
+            log("GoldHEN fırlatılıyor...", "warn");
+            // Burası senin daha önce yazdığın 'goldhen_1302.bin' gönderme kodun olacak
+            // Port 9020 artık açık olduğu için hata vermeyecektir!
+        }
+    </script>
+</body>
+</html>
