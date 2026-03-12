@@ -1,103 +1,52 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>PROJECT DORUK-X | FW 13.02 OFFENSIVE TOOLKIT</title>
-    <style>
-        body { background-color: #050505; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        #matrix_bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.15; }
-        .main-container { width: 90%; height: 90vh; background: rgba(10, 10, 10, 0.9); border: 2px solid #0f0; box-shadow: 0 0 30px rgba(0, 255, 0, 0.5); border-radius: 10px; display: flex; flex-direction: column; padding: 20px; }
-        .header { text-align: center; border-bottom: 1px solid #0f0; padding-bottom: 10px; margin-bottom: 20px; }
-        .panel { display: flex; justify-content: space-between; margin-bottom: 15px; }
-        .status-box { width: 45%; border: 1px solid #444; padding: 10px; background: #000; }
-        .btn-box { width: 52%; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        button { background: transparent; color: #0f0; border: 1px solid #0f0; padding: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase; width: 48%; }
-        button:hover { background: #0f0; color: #000; }
-        #btn-gold { width: 98%; border: 2px solid #ffd700; color: #ffd700; margin-top: 5px; }
-        #console-log { flex-grow: 1; background: #000; border: 1px solid #444; padding: 15px; overflow-y: auto; color: #fff; font-size: 0.9em; margin-top: 10px; }
-        .log-warn { color: #ff0; } .log-err { color: #f00; } .log-suc { color: #0f0; } .log-cmd { color: #0df; }
-    </style>
-</head>
-<body>
-    <canvas id="matrix_bg"></canvas>
-    <div class="main-container">
-        <div class="header"><h1>Project Doruk-X</h1><p>FW 13.02 | SCENE-COLLECTIVE INJECTOR</p></div>
-        <div class="panel">
-            <div class="status-box">
-                <div>Durum: <span id="sys-status">BEKLEMEDE</span></div>
-                <div>Sızıntı: <span id="leak-status" style="color:#f00">YOK</span></div>
-            </div>
-            <div class="btn-box">
-                <button onclick="runJit()">JIT SIZDIR</button>
-                <button onclick="runHeap()">HEAP SPRAY</button>
-                <button id="btn-gold" onclick="loadGoldHEN()">GOLDHEN_1302 YÜKLE</button>
-            </div>
-        </div>
-        <div id="console-log">> Konsol Hazır... GitHub Bağlantısı Bekleniyor...<br></div>
-    </div>
+async function loadGoldHEN() {
+    if(document.getElementById('leak-status').innerText === "YOK") {
+        log("HATA: Önce JIT SIZDIR butonuna basmalısın!", "err");
+        return;
+    }
 
-    <script>
-        function log(msg, type = '') {
-            var logBox = document.getElementById('console-log');
-            logBox.innerHTML += `<span class="log-${type}">> ${msg}</span><br>`;
-            logBox.scrollTop = logBox.scrollHeight;
-        }
+    log("-----------------------------------------", "cmd");
+    log("HEN ÇEKİLİYOR: goldhen_1302.bin", "warn");
 
-        function runJit() {
-            log("JIT Sızıntısı deneniyor...", "cmd");
-            setTimeout(() => {
-                document.getElementById('leak-status').innerText = "AKTİF";
-                document.getElementById('leak-status').style.color = "#0f0";
-                log("KRİTİK BAŞARI: Bellek kapısı aralandı!", "suc");
-            }, 1000);
-        }
+    try {
+        const response = await fetch('goldhen_1302.bin');
+        if (!response.ok) throw new Error("Dosya GitHub'da yok!");
+        const payloadBuffer = await response.arrayBuffer();
+        
+        // Denenecek portlar listesi
+        const ports = [9020, 9021, 9090, 8080];
+        let success = false;
 
-        function runHeap() {
-            log("Heap Spray belleği ısıtıyor...", "cmd");
-            setTimeout(() => log("BELLEK STABİLİZE EDİLDİ.", "suc"), 1000);
-        }
-
-        async function loadGoldHEN() {
-            if(document.getElementById('leak-status').innerText === "YOK") {
-                log("HATA: Önce JIT SIZDIR butonuna basmalısın!", "err");
-                return;
-            }
-
-            log("-----------------------------------------", "cmd");
-            log("HEN DOSYASI ÇEKİLİYOR: goldhen_1302.bin", "warn");
+        for (let port of ports) {
+            if (success) break;
+            log(`${port} portu deneniyor...`, "cmd");
 
             try {
-                // 1. GitHub'daki dosyayı indir
-                const response = await fetch('goldhen_1302.bin');
-                if (!response.ok) throw new Error("Dosya GitHub'da bulunamadı! İsim doğru mu?");
-                const payloadBuffer = await response.arrayBuffer();
-                
-                log("Dosya hazır (" + payloadBuffer.byteLength + " bytes).", "suc");
-                log("PS4 Portuna enjekte ediliyor (Port 9020)...", "cmd");
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', `http://127.0.0.1:${port}/payload`, true);
+                    xhr.timeout = 2000; // 2 saniye içinde cevap gelmezse diğer porta geç
 
-                // 2. PS4'ün içine (localhost 9020) gönder
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', 'http://127.0.0.1:9020/payload', true);
-                
-                xhr.onload = function() {
-                    log("BİLGİ: Enjeksiyon sinyali gönderildi.", "suc");
-                    log("Sol üst köşedeki bildirimi bekle!", "warn");
-                };
+                    xhr.onload = function() {
+                        log(`BAŞARILI: ${port} portu üzerinden enjekte edildi!`, "suc");
+                        success = true;
+                        resolve();
+                    };
 
-                xhr.onerror = function() {
-                    log("PORT HATASI: PS4 kapıyı açmadı (Port 9020).", "err");
-                    log("Farklı bir port deneniyor (9090)...", "warn");
-                    const xhr2 = new XMLHttpRequest();
-                    xhr2.open('POST', 'http://127.0.0.1:9090/payload', true);
-                    xhr2.send(payloadBuffer);
-                };
-
-                xhr.send(payloadBuffer);
-
+                    xhr.onerror = () => reject();
+                    xhr.ontimeout = () => reject();
+                    xhr.send(payloadBuffer);
+                });
             } catch (e) {
-                log("HATA: " + e.message, "err");
+                log(`${port} kapalı, sıradakine geçiliyor...`, "warn");
             }
         }
-    </script>
-</body>
-</html>
+
+        if (!success) {
+            log("TÜM PORTLAR BAŞARISIZ. PS4 henüz payload almaya hazır değil.", "err");
+            log("İPUCU: PS4'ü kapat-aç yapıp sızıntıyı (JIT) tekrar dene.", "warn");
+        }
+
+    } catch (e) {
+        log("HATA: " + e.message, "err");
+    }
+}
