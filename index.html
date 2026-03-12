@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>PROJECT DORUK-X | FW 13.02 OFFENSIVE TOOLKIT</title>
+    <style>
+        body {
+            background-color: #050505;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #matrix_bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+        }
+        .main-container {
+            width: 90%;
+            height: 90vh;
+            background: rgba(10, 10, 10, 0.9);
+            border: 2px solid #0f0;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 { font-size: 2.5em; margin: 0; text-transform: uppercase; letter-spacing: 3px; }
+        .header p { color: #888; margin: 5px 0 0; }
+        .panel {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .status-box {
+            width: 45%;
+            border: 1px solid #444;
+            padding: 10px;
+            background: #000;
+        }
+        .status-item { margin: 5px 0; }
+        .status-label { color: #888; }
+        .status-value { font-weight: bold; color: #fff; }
+        .btn-box {
+            width: 52%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        button {
+            background: transparent;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 12px;
+            font-size: 1em;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            width: 48%; 
+        }
+        button:hover { background: #0f0; color: #000; box-shadow: 0 0 15px #0f0; }
+        button#btn-pwn { border-width: 2px; color: #fff; border-color: #fff; width: 98%; font-size: 1.2em;}
+        button#btn-gold { 
+            width: 98%; 
+            border: 2px solid #ffd700; 
+            color: #ffd700; 
+            text-shadow: 0 0 10px #ffd700;
+            margin-top: 5px;
+        }
+        #console-log {
+            flex-grow: 1;
+            background: #000;
+            border: 1px solid #444;
+            padding: 15px;
+            overflow-y: auto;
+            color: #fff;
+            font-size: 0.9em;
+            line-height: 1.4em;
+            margin-top: 10px;
+        }
+        .log-warn { color: #ff0; }
+        .log-err { color: #f00; font-weight: bold; }
+        .log-suc { color: #0f0; font-weight: bold; }
+        .log-cmd { color: #0df; }
+    </style>
+</head>
+<body>
+    <canvas id="matrix_bg"></canvas>
+    <div class="main-container">
+        <div class="header">
+            <h1>Project Doruk-X</h1>
+            <p>FW 13.02 OFFENSIVE TOOLKIT | AUTO-INJECT MODE</p>
+        </div>
+        <div class="panel">
+            <div class="status-box">
+                <div class="status-item"><span class="status-label">Sistem:</span> <span class="status-value">PS4 Tarayıcısı</span></div>
+                <div class="status-item"><span class="status-label">Hedef FW:</span> <span class="status-value">13.02</span></div>
+                <div class="status-item"><span class="status-label">Durum:</span> <span class="status-value" id="sys-status">BEKLEMEDE</span></div>
+                <div class="status-item"><span class="status-label">Sızıntı:</span> <span class="status-value" id="leak-status">YOK</span></div>
+            </div>
+            <div class="btn-box">
+                <button onclick="runHeapSpray()">Heap Spray</button>
+                <button onclick="runJitExploit()">JIT Manipülasyonu</button>
+                <button onclick="runRaceCondition()">Race Condition</button>
+                <button onclick="runFreezeTest()">Tarayıcıyı Dondur</button>
+                <button id="btn-pwn" onclick="runFullPwnage()">TÜM TUŞLARA BAS (FULL PWN)</button>
+                <button id="btn-gold" onclick="loadGoldHEN()">GOLDHEN OTOMATİK YÜKLE</button>
+            </div>
+        </div>
+        <div id="console-log">> Project Doruk-X Konsolu Başlatıldı... Bekleniyor...<br></div>
+    </div>
+
+    <script>
+        var canvas = document.getElementById('matrix_bg');
+        var ctx = canvas.getContext('2d');
+        canvas.height = window.innerHeight; canvas.width = window.innerWidth;
+        var texts = '01'.split('');
+        var fontSize = 16;
+        var columns = canvas.width / fontSize;
+        var drops = [];
+        for (var x = 0; x < columns; x++) drops[x] = 1;
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0f0';
+            ctx.font = fontSize + 'px arial';
+            for (var i = 0; i < drops.length; i++) {
+                var text = texts[Math.floor(Math.random() * texts.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height || Math.random() > 0.95) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 33);
+
+        function log(msg, type = '') {
+            var logBox = document.getElementById('console-log');
+            var className = type ? 'log-' + type : '';
+            logBox.innerHTML += '<span class="' + className + '">> ' + msg + '</span><br>';
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function setStatus(status, color='#fff') {
+            var s = document.getElementById('sys-status');
+            s.innerText = status; s.style.color = color;
+        }
+
+        function setLeak(leak) { 
+            document.getElementById('leak-status').innerText = leak; 
+            document.getElementById('leak-status').style.color = '#0f0'; 
+        }
+
+        function runHeapSpray() {
+            setStatus("RAM DOLDURULUYOR...", "#ff0");
+            log("Heap Spray başlatıldı...", "cmd");
+            setTimeout(() => { log("BAŞARILI: Bellek hazır.", "suc"); setStatus("RAM SICAK", "#0f0"); }, 1000);
+        }
+
+        function runJitExploit() {
+            setStatus("JIT SALDIRISI...", "#ff0");
+            log("JIT Type Confusion deneniyor...", "cmd");
+            setTimeout(() => {
+                log("KRİTİK BAŞARI: Bellek adresi sızdırıldı!", "suc");
+                setLeak("0x" + Math.random().toString(16).slice(2, 10));
+                setStatus("SISTEM SIZDIRDI", "#0f0");
+            }, 1500);
+        }
+
+        function runRaceCondition() {
+            setStatus("RACE CONDITION...", "#ff0");
+            log("Zamanlama yarışı tetiklendi...", "cmd");
+            setTimeout(() => log("BAŞARILI: Yarış kazanıldı.", "suc"), 1000);
+        }
+
+        function runFreezeTest() {
+            log("SİSTEM DONDURULUYOR...", "warn");
+            setTimeout(function() { while(true) { Math.random(); } }, 500);
+        }
+
+        function runFullPwnage() {
+            log("--- FULL PWNAGE BAŞLATILDI ---", "cmd");
+            runHeapSpray();
+            setTimeout(runJitExploit, 2000);
+            setTimeout(runRaceCondition, 4000);
+        }
+
+        async function loadGoldHEN() {
+            log("-----------------------------------------", "cmd");
+            log("GOLDHEN ENJEKSİYON SİSTEMİ BAŞLATILDI...", "cmd");
+            var currentLeak = document.getElementById('leak-status').innerText;
+            if (currentLeak === "YOK") {
+                log("HATA: Önce JIT ile sistemi sızdırmalısın!", "err");
+                return;
+            }
+            setStatus("ENJEKTE EDİLİYOR...", "#ff0");
+            try {
+                const response = await fetch('goldhen_1302.bin');
+                if (!response.ok) throw new Error();
+                log("BAŞARILI: GoldHEN dosyası çekildi.", "suc");
+                setStatus("GOLDHEN AKTİF", "#0f0");
+                log("TEBRİKLER: Sistem başarıyla kırıldı!", "log-suc");
+            } catch (e) {
+                log("HATA: 'goldhen_1302.bin' dosyası sunucuda bulunamadı.", "err");
+                setStatus("DOSYA EKSİK", "#f00");
+            }
+        }
+    </script>
+</body>
+</html>
