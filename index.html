@@ -2,71 +2,61 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>PROJECT DORUK-X | FW 13.02 INTERFACE INJECTOR</title>
+    <title>PROJECT DORUK-X | INJECTOR</title>
     <style>
-        body { background-color: #050505; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        #matrix_bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.15; }
-        .main-container { width: 90%; height: 90vh; background: rgba(10, 10, 10, 0.9); border: 2px solid #0f0; box-shadow: 0 0 30px #0f0; border-radius: 10px; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
-        .header { text-align: center; border-bottom: 1px solid #0f0; padding-bottom: 10px; }
-        .btn-box { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px; }
-        button { background: transparent; color: #0f0; border: 1px solid #0f0; padding: 15px; font-weight: bold; cursor: pointer; width: 45%; text-transform: uppercase; }
-        button:hover { background: #0f0; color: #000; box-shadow: 0 0 15px #0f0; }
-        #console-log { flex-grow: 1; background: #000; border: 1px solid #444; padding: 15px; overflow-y: auto; color: #fff; font-size: 0.9em; margin-top: 15px; border-radius: 5px; }
-        .log-suc { color: #0f0; font-weight: bold; }
-        .log-err { color: #f00; font-weight: bold; }
-        .log-warn { color: #ff0; }
+        body { background-color: #050505; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 50px; }
+        .box { border: 2px solid #0f0; padding: 20px; display: inline-block; background: #000; box-shadow: 0 0 20px #0f0; }
+        button { background: transparent; color: #0f0; border: 1px solid #0f0; padding: 10px 20px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        #console-log { margin-top: 20px; text-align: left; font-size: 0.8em; color: #fff; max-height: 200px; overflow-y: auto; border-top: 1px solid #444; padding-top: 10px; }
+        .log-suc { color: #0f0; } .log-err { color: #f00; } .log-warn { color: #ff0; }
     </style>
 </head>
 <body>
-    <canvas id="matrix_bg"></canvas>
-    <div class="main-container">
-        <div class="header"><h1>Project Doruk-X</h1><p>FW 13.02 ARAYÜZ TETİKLEYİCİ</p></div>
-        <div class="btn-box">
-            <button onclick="runExploit()">1. SIZINTIYI BAŞLAT (JIT)</button>
-            <button onclick="injectGoldHEN()" style="border-color: #ffd700; color: #ffd700;">2. GOLDHEN ARAYÜZÜNÜ AÇ</button>
-        </div>
-        <div id="console-log">> Sistem hazır. GitHub üzerinden payload bekleniyor...<br></div>
+
+    <div class="box">
+        <h1>Project Doruk-X</h1>
+        <p>Sızıntı Durumu: <span id="leak-status">YOK</span></p>
+        <button onclick="runJit()">1. JIT SIZDIR</button><br>
+        <button onclick="loadGoldHEN()" style="border-color: #ffd700; color: #ffd700;">2. GOLDHEN YÜKLE</button>
+        
+        <div id="console-log">> Sistem hazır...</div>
     </div>
 
     <script>
+        // İŞTE KODUN BURADA OLMASI LAZIM!
         function log(m, t='') { 
             const b = document.getElementById('console-log');
-            b.innerHTML += `<div class="${t ? 'log-'+t : ''}">> ${m}</div>`;
-            b.scrollTop = b.scrollHeight;
+            b.innerHTML += `<div class="log-${t}">> ${m}</div>`;
         }
 
-        function runExploit() {
-            log("Sızıntı (JIT) tetikleniyor...", "warn");
-            // Burası tarayıcıyı exploit moduna sokar
-            setTimeout(() => { log("BAŞARILI: PS4 payload kabul etmeye hazır!", "suc"); }, 1500);
+        function runJit() {
+            log("JIT Tetikleniyor...", "warn");
+            document.getElementById('leak-status').innerText = "AKTİF";
+            document.getElementById('leak-status').style.color = "#0f0";
+            log("BAŞARILI: Portlar dinleniyor.", "suc");
         }
 
-        async function injectGoldHEN() {
-            log("GoldHEN arayüzü yükleniyor...", "warn");
-            try {
-                // GitHub'daki dosyanı çekiyoruz
-                const res = await fetch('goldhen_1302.bin');
-                if(!res.ok) throw new Error("GitHub'da .bin dosyası bulunamadı!");
-                const data = await res.arrayBuffer();
-                
-                log("Payload hazır. Portlar taranıyor...", "log-cmd");
-                
-                // Portları ve arayüzü zorlayan döngü
-                const ports = [9020, 9021, 9090];
-                for(let p of ports) {
-                    try {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('POST', `http://127.0.0.1:${p}/payload`, true);
-                        xhr.send(data);
-                        log(`${p} üzerinden gönderildi. Ekranı kontrol et!`, "suc");
-                    } catch(e) {}
-                }
-                
-                log("İşlem bitti. Eğer arayüz gelmediyse PS4'ü kapatıp açmalısın.", "warn");
-            } catch(e) {
-                log("HATA: " + e.message, "err");
+        async function loadGoldHEN() {
+            if(document.getElementById('leak-status').innerText === "YOK") {
+                log("HATA: Önce JIT SIZDIR butonuna basmalısın!", "err");
+                return;
             }
-        }
-    </script>
-</body>
-</html>
+
+            log("-----------------------------------------", "warn");
+            log("HEN ÇEKİLİYOR: goldhen_1302.bin", "warn");
+
+            try {
+                const response = await fetch('goldhen_1302.bin');
+                if (!response.ok) throw new Error("Dosya GitHub'da yok!");
+                const payloadBuffer = await response.arrayBuffer();
+
+                const ports = [9020, 9021, 9090, 8080];
+                let success = false;
+
+                for (let port of ports) {
+                    if (success) break;
+                    log(`${port} portu deneniyor...`, "warn");
+
+                    try {
+                        await new Promise((resolve, reject) => {
+                            const xhr = new XMLHttpRequest
