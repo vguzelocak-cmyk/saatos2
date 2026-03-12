@@ -1,58 +1,29 @@
 async function inject() {
-    if(!window.ready) return print("HATA: Önce 1. butona basın!", "err");
-    
-    print("--------------------------------", "warn");
-    print("GitHub'dan 'goldhen_1302.bin' alınıyor...", "warn");
+    if(!window.ready) return print("HATA: Önce 1. butona bas!", "err");
+    print("Sürekli Tarama Başlatıldı... Kapı açılana kadar denenecek.", "warn");
 
-    try {
-        const res = await fetch('goldhen_1302.bin');
-        if(!res.ok) throw new Error("Dosya GitHub'da bulunamadı!");
-        const payload = await res.arrayBuffer();
-        
-        // BİLİNMEYEN VE ÖZEL TÜM PORTLAR
-        const ports = [
-            9020, 9021, // Standart GoldHEN / Mira
-            9090, 9999, // Webkit / Orbis
-            8080, 8081, // Alternatif HTTP Portları
-            1337,       // Leet Port (Bazı özel sızıntılar)
-            5353,       // MDNS Portu
-            65535,      // Son Port (Nadir durumlar)
-            2811, 2812  // Bazı Linux/Loader sürümleri
-        ];
+    const res = await fetch('goldhen_1302.bin');
+    const payload = await res.arrayBuffer();
+    const ports = [9020, 9021, 9090, 8080];
 
-        let success = false;
-
+    // 10 kere üst üste tüm portları tarar
+    for(let i=0; i<10; i++) {
+        print(`Deneme #${i+1}...`, "log-cmd");
         for(let p of ports) {
-            if(success) break;
-            print(`Port ${p} zorlanıyor...`, "warn");
-
             try {
-                await new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', `http://127.0.0.1:${p}/payload`, true);
-                    xhr.timeout = 2500; // Tarama hızını artırmak için süreyi kısalttım
-                    
-                    xhr.onload = () => { 
-                        print(`BİNGO! ${p} KAPISI AÇILDI!`, "suc"); 
-                        success = true; 
-                        resolve(); 
-                    };
-                    xhr.onerror = () => reject();
-                    xhr.ontimeout = () => reject();
-                    xhr.send(payload);
-                });
-            } catch(e) {
-                // Bu port kapalı, hemen sonrakine geç
-            }
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', `http://127.0.0.1:${p}/payload`, true);
+                xhr.timeout = 1000;
+                xhr.send(payload);
+                
+                xhr.onload = () => { 
+                    print("BULDUM! SİSTEM KIRILDI!", "suc");
+                    return; 
+                };
+            } catch(e) {}
         }
-
-        if(!success) {
-            print("TÜM PORTLAR (BİLİNMEYENLER DAHİL) CEVAP VERMEDİ.", "err");
-            print("MUHTEMEL SORUN: 1. Buton (Exploit) PS4'ü tam kıramadı.", "log-cmd");
-        } else {
-            print("DOSYA BAŞARIYLA GÖNDERİLDİ!", "suc");
-        }
-    } catch(e) {
-        print("HATA: " + e.message, "err");
+        // Her tarama arası 2 saniye bekle
+        await new Promise(r => setTimeout(r, 2000));
     }
+    print("10 deneme bitti. Kapı hala kapalı.", "err");
 }
