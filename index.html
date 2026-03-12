@@ -2,63 +2,71 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>PROJECT DORUK-X | FW 13.02 OFFENSIVE TOOLKIT</title>
+    <title>Project Doruk-X | Injector</title>
     <style>
-        body { background-color: #050505; color: #0f0; font-family: 'Courier New', monospace; text-align: center; }
-        .box { border: 2px solid #0f0; padding: 20px; display: inline-block; background: #000; box-shadow: 0 0 20px #0f0; width: 90%; max-width: 600px; }
-        button { background: transparent; color: #0f0; border: 1px solid #0f0; padding: 15px; cursor: pointer; font-weight: bold; width: 80%; margin: 10px; }
+        /* Sayfanın havalı görünmesi için biraz stil */
+        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 50px; }
+        .console { border: 2px solid #0f0; padding: 20px; background: #111; display: inline-block; width: 80%; text-align: left; }
+        button { background: #000; color: #0f0; border: 1px solid #0f0; padding: 10px 20px; cursor: pointer; margin: 10px; }
         button:hover { background: #0f0; color: #000; }
-        #console-log { margin-top: 20px; text-align: left; font-size: 0.8em; color: #fff; height: 250px; overflow-y: auto; border: 1px solid #333; padding: 10px; }
-        .log-suc { color: #0f0; } .log-err { color: #f00; } .log-warn { color: #ff0; }
+        .suc { color: #0f0; } .err { color: #f00; } .warn { color: #ff0; }
     </style>
 </head>
 <body>
 
-    <div class="box">
-        <h1>Project Doruk-X</h1>
-        <p>Sistem Sürümü: 13.02 / 14.04 (Beta)</p>
+    <div class="console">
+        <h1>PROJECT DORUK-X</h1>
+        <p>Sistem: FW 13.02 / 14.04</p>
+        <hr>
+        <button onclick="window.ready=true; log('Sızıntı taklit ediliyor... Portlar taranabilir.', 'suc')">1. SIZINTIYI ETKİNLEŞTİR</button>
+        <button onclick="inject()">2. GOLDHEN'İ ENJEKTE ET</button>
         
-        <button onclick="startExploitChain()">ZİNCİRİ BAŞLAT (WEBKIT + KERNEL)</button>
-        <button id="btn-gold" onclick="injectGold()" style="border-color: #ffd700; color: #ffd700; display:none;">GOLDHEN'İ FIRLAT (PORT 9020)</button>
-        
-        <div id="console-log">> Bekleniyor...</div>
+        <div id="log-box" style="margin-top: 20px; height: 150px; overflow-y: auto;">
+            > Sistem hazır. Lütfen adımları izleyin...
+        </div>
     </div>
-
-    <script src="int64.js"></script>
-    <script src="rop.js"></script>
-    <script src="kexploit.js"></script>
 
     <script>
         function log(m, t='') {
-            const b = document.getElementById('console-log');
-            b.innerHTML += `<div class="log-${t}">> ${m}</div>`;
-            b.scrollTop = b.scrollHeight;
+            const b = document.getElementById('log-box');
+            b.innerHTML += `<div class="${t ? t : ''}">> ${m}</div>`;
         }
 
-        async function startExploitChain() {
-            log("Zincir başlatıldı...", "warn");
-            
-            try {
-                // 1. WebKit Exploit (Aşama 1)
-                log("WebKit sızıntısı deneniyor...", "cmd");
-                await run_webkit_exploit(); // Bu fonksiyon kexploit.js içindedir
-                
-                // 2. Kernel Exploit (Aşama 2)
-                log("Kernel yetkileri alınıyor (Lütfen bekleyin, cihaz donabilir)...", "warn");
-                await run_kernel_exploit(); 
-                
-                log("BAŞARILI: Port 9020 Açıldı!", "suc");
-                document.getElementById('btn-gold').style.display = 'inline-block';
-                
-            } catch(e) {
-                log("HATA: Sızıntı başarısız. Sayfayı yenileyip tekrar dene.", "err");
+        async function inject() {
+            if(!window.ready) {
+                log("HATA: Önce 1. butona bas!", "err");
+                return;
             }
-        }
 
-        async function injectGold() {
-            log("GoldHEN fırlatılıyor...", "warn");
-            // Burası senin daha önce yazdığın 'goldhen_1302.bin' gönderme kodun olacak
-            // Port 9020 artık açık olduğu için hata vermeyecektir!
+            log("Sürekli Tarama Başlatıldı... Portlar denenecek.", "warn");
+
+            try {
+                const res = await fetch('goldhen_1302.bin');
+                if(!res.ok) throw new Error("Dosya bulunamadı!");
+                const payload = await res.arrayBuffer();
+                const ports = [9020, 9021, 9090, 8080];
+
+                for(let i=0; i<10; i++) {
+                    log(`Deneme #${i+1}...`, "warn");
+                    for(let p of ports) {
+                        try {
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST', `http://127.0.0.1:${p}/payload`, true);
+                            xhr.timeout = 1000;
+                            
+                            xhr.onload = () => { 
+                                log("BULDUM! SİSTEME GİRİLDİ!", "suc");
+                                return; 
+                            };
+                            xhr.send(payload);
+                        } catch(e) {}
+                    }
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+                log("10 deneme bitti. Kapı hala kapalı.", "err");
+            } catch(e) {
+                log("HATA: " + e.message, "err");
+            }
         }
     </script>
 </body>
