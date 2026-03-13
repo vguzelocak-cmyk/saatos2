@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>PS4 WebKit Test Panel</title>
+<title>WebKit Test Panel</title>
 
 <style>
 body{
@@ -34,7 +34,7 @@ button:hover{
 }
 
 #log{
-    height:200px;
+    height:220px;
     overflow-y:auto;
     border:1px solid #444;
     padding:10px;
@@ -45,23 +45,30 @@ button:hover{
 .status{
     color:yellow;
 }
+
+.mem{
+    color:#0ff;
+}
 </style>
 </head>
 
 <body>
 
-<h1>PS4 WebKit Research Panel</h1>
+<h1>WebKit Research Panel</h1>
 
 <div class="panel">
 <h3>Test Kontrolleri</h3>
 
-<button onclick="triggerCrash()">Stack Overflow Testi</button>
+<button onclick="heapSpray()">🧠 Heap Spray</button>
+<button onclick="ramTest()">💾 RAM Şişirme</button>
+<button onclick="triggerCrash()">Stack Overflow</button>
 <button onclick="location.reload()" style="background:red;">Sıfırla</button>
 
 </div>
 
 <div class="panel">
 <h3>Durum: <span id="status" class="status">Beklemede...</span></h3>
+<h3>Bellek: <span id="memory" class="mem">0 MB</span></h3>
 <div id="log"></div>
 </div>
 
@@ -69,16 +76,85 @@ button:hover{
 
 const logBox = document.getElementById("log");
 const statusText = document.getElementById("status");
+const memText = document.getElementById("memory");
+
+let heap = [];
+let ramData = [];
 
 function log(msg){
-    let d = document.createElement("div");
-    d.innerText = "["+ new Date().toLocaleTimeString() + "] " + msg;
+    let d=document.createElement("div");
+    d.innerText="["+new Date().toLocaleTimeString()+"] "+msg;
     logBox.prepend(d);
 }
 
+function updateMemory(){
+    let approx = (heap.length + ramData.length) * 0.25;
+    memText.innerText = approx.toFixed(2) + " MB (tahmini)";
+}
+
+setInterval(updateMemory,1000);
+
+/* 🧠 Heap Spray */
+
+function heapSpray(){
+
+    statusText.innerText="Heap Spray çalışıyor";
+    log("Heap spray başlatıldı");
+
+    try{
+
+        let block = "AAAA".repeat(10000);
+
+        for(let i=0;i<5000;i++){
+            heap.push(block + i);
+            if(i%500===0) log("Heap blok: "+i);
+        }
+
+        log("Heap spray tamamlandı");
+
+    }catch(e){
+
+        log("Heap hatası: "+e.message);
+
+    }
+
+}
+
+/* 💾 RAM Şişirme */
+
+function ramTest(){
+
+    statusText.innerText="RAM tahsisi başlatıldı";
+    log("RAM şişirme testi başlatıldı");
+
+    try{
+
+        for(let i=0;i<1000;i++){
+
+            ramData.push(new Uint32Array(0x10000).fill(0x41414141));
+
+            if(i%100===0){
+                log("RAM blok: "+i);
+            }
+
+        }
+
+        log("RAM testi tamamlandı");
+
+    }catch(e){
+
+        log("Bellek hatası: "+e.message);
+        statusText.innerText="Bellek limiti";
+
+    }
+
+}
+
+/* Stack overflow */
+
 function triggerCrash(){
 
-    statusText.innerText = "Stack Overflow deneniyor...";
+    statusText.innerText="Stack overflow deneniyor";
     log("Stack overflow testi başlatıldı");
 
     function recurse(){
@@ -87,13 +163,31 @@ function triggerCrash(){
 
     try{
         recurse();
-    }
-    catch(e){
-        log("Hata yakalandı: " + e.message);
-        statusText.innerText = "Hata yakalandı";
+    }catch(e){
+        log("Hata yakalandı: "+e.message);
     }
 
 }
+
+/* 🔍 Crash Detector */
+
+let heartbeat=Date.now();
+
+setInterval(()=>{
+    heartbeat=Date.now();
+},500);
+
+setInterval(()=>{
+
+    let diff = Date.now()-heartbeat;
+
+    if(diff>2000){
+
+        log("⚠️ Sistem donmuş olabilir");
+
+    }
+
+},2000);
 
 </script>
 
