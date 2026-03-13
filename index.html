@@ -1,101 +1,101 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PS4 13.02 WebKit Research Lab</title>
-    <style>
-        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; padding: 20px; }
-        .box { border: 1px solid #0f0; padding: 15px; margin-bottom: 10px; background: #050505; }
-        button { background: #0f0; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0a0; }
-        #log { height: 200px; overflow-y: scroll; border: 1px solid #444; padding: 10px; font-size: 12px; color: #aaa; }
-        .status { color: yellow; }
-    </style>
+<meta charset="UTF-8">
+<title>PS4 WebKit Test Panel</title>
+
+<style>
+body{
+    background:#000;
+    color:#0f0;
+    font-family:Courier New, monospace;
+    padding:20px;
+}
+
+.panel{
+    border:1px solid #0f0;
+    padding:15px;
+    margin-bottom:10px;
+    background:#050505;
+}
+
+button{
+    background:#0f0;
+    color:#000;
+    border:none;
+    padding:10px 20px;
+    margin:5px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+button:hover{
+    background:#0a0;
+}
+
+#log{
+    height:200px;
+    overflow-y:auto;
+    border:1px solid #444;
+    padding:10px;
+    font-size:12px;
+    color:#aaa;
+}
+
+.status{
+    color:yellow;
+}
+</style>
 </head>
+
 <body>
 
-    <h1>PS4 13.02 Research Tool</h1>
-    
-    <div class="box">
-        <h3>Saldırı Paneli</h3>
-        <button onclick="startJitSpray()">JIT Spray Başlat</button>
-        <button onclick="startMemLeak()">RAM Şişir (Crash Denemesi)</button>
-        <button onclick="startTypeConfuse()">Type Confusion Zorla</button>
-        <button onclick="location.reload()" style="background: red;">Sıfırla</button>
-    </div>
+<h1>PS4 WebKit Research Panel</h1>
 
-    <div class="box">
-        <h3>Sistem Durumu: <span id="stat" class="status">Beklemede...</span></h3>
-        <div id="log"></div>
-    </div>
+<div class="panel">
+<h3>Test Kontrolleri</h3>
 
-    <script>
-        const logBox = document.getElementById('log');
-        const stat = document.getElementById('stat');
+<button onclick="triggerCrash()">Stack Overflow Testi</button>
+<button onclick="location.reload()" style="background:red;">Sıfırla</button>
 
-        function log(msg) {
-            let div = document.createElement('div');
-            div.innerText = "[" + new Date().toLocaleTimeString() + "] " + msg;
-            logBox.prepend(div);
-        }
+</div>
 
-        // 1. JIT SPRAY: İşlemciyi Optimize Edilmiş Kodla Boğma
-        function startJitSpray() {
-            stat.innerText = "JIT Spray Çalışıyor...";
-            log("JIT döngüsü başlatıldı...");
-            
-            function jit_func(a, b) {
-                return a + b;
-            }
+<div class="panel">
+<h3>Durum: <span id="status" class="status">Beklemede...</span></h3>
+<div id="log"></div>
+</div>
 
-            try {
-                for(let i = 0; i < 1000000; i++) {
-                    jit_func(i, i + 1);
-                    if(i % 100000 === 0) log("JIT İlerleme: " + i);
-                }
-                log("Sistem donmadı, JIT direnci yüksek.");
-            } catch(e) {
-                log("HATA: " + e.message);
-            }
-        }
+<script>
 
-        // 2. RAM ŞİŞİRME: Tarayıcıyı "Yetersiz Bellek" Hatasına Zorlama
-        let bigData = [];
-        function startMemLeak() {
-            stat.innerText = "RAM Şişiriliyor...";
-            log("Büyük TypedArray'ler oluşturuluyor...");
-            
-            try {
-                for(let i = 0; i < 2000; i++) {
-                    bigData.push(new Uint32Array(0x10000).fill(0x41414141));
-                    if(i % 100 === 0) {
-                        log("Tahsis edilen blok: " + i);
-                    }
-                }
-            } catch(e) {
-                stat.innerText = "CRASH OLABİLİR!";
-                log("BELLEK PATLADI: " + e.message);
-            }
-        }
+const logBox = document.getElementById("log");
+const statusText = document.getElementById("status");
 
-        // 3. TYPE CONFUSION: Tarayıcının Mantığını Şaşırtma
-        function startTypeConfuse() {
-            stat.innerText = "Type Confusion Deneniyor...";
-            log("Dinamik tip değişikliği başlatıldı...");
+function log(msg){
+    let d = document.createElement("div");
+    d.innerText = "["+ new Date().toLocaleTimeString() + "] " + msg;
+    logBox.prepend(d);
+}
 
-            function confuse(obj) {
-                return obj.val + 1;
-            }
+function triggerCrash(){
 
-            // Önce sayılarla eğit
-            for(let i = 0; i < 10000; i++) confuse({val: i});
+    statusText.innerText = "Stack Overflow deneniyor...";
+    log("Stack overflow testi başlatıldı");
 
-            // Aniden string/object göndererek tarayıcıyı şaşırt
-            log("Beklenmeyen tip gönderiliyor...");
-            let res = confuse({val: "X"});
-            log("Sonuç: " + res);
-            
-            // Eğer sistem burada hata kodu vermezse, tarayıcı güvenlidir demektir
-        }
-    </script>
+    function recurse(){
+        recurse();
+    }
+
+    try{
+        recurse();
+    }
+    catch(e){
+        log("Hata yakalandı: " + e.message);
+        statusText.innerText = "Hata yakalandı";
+    }
+
+}
+
+</script>
+
 </body>
 </html>
