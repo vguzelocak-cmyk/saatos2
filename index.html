@@ -1,23 +1,101 @@
-function triggerCrash() {
-    log("Bellek taşması (Overflow) başlatılıyor...", "warn");
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PS4 13.02 WebKit Research Lab</title>
+    <style>
+        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; padding: 20px; }
+        .box { border: 1px solid #0f0; padding: 15px; margin-bottom: 10px; background: #050505; }
+        button { background: #0f0; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0a0; }
+        #log { height: 200px; overflow-y: scroll; border: 1px solid #444; padding: 10px; font-size: 12px; color: #aaa; }
+        .status { color: yellow; }
+    </style>
+</head>
+<body>
+
+    <h1>PS4 13.02 Research Tool</h1>
     
-    // Sonsuz bir döngü içinde devasa diziler oluşturarak belleği şişirir
-    var crashArray = [];
-    try {
-        while(true) {
-            // Her döngüde 100 MB'lık yer kaplar
-            crashArray.push(new ArrayBuffer(1024 * 1024 * 100)); 
-            
-            // Konsola durum yaz (PS4 donmadan önce son göreceğin şey olabilir)
-            console.log("Bellek tüketiliyor: " + (crashArray.length * 100) + " MB");
-            
-            // Eğer tarayıcı hala ölmediyse, DOM üzerinden yük bindir
-            var div = document.createElement("div");
-            div.innerHTML = Math.random();
-            document.body.appendChild(div);
+    <div class="box">
+        <h3>Saldırı Paneli</h3>
+        <button onclick="startJitSpray()">JIT Spray Başlat</button>
+        <button onclick="startMemLeak()">RAM Şişir (Crash Denemesi)</button>
+        <button onclick="startTypeConfuse()">Type Confusion Zorla</button>
+        <button onclick="location.reload()" style="background: red;">Sıfırla</button>
+    </div>
+
+    <div class="box">
+        <h3>Sistem Durumu: <span id="stat" class="status">Beklemede...</span></h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const logBox = document.getElementById('log');
+        const stat = document.getElementById('stat');
+
+        function log(msg) {
+            let div = document.createElement('div');
+            div.innerText = "[" + new Date().toLocaleTimeString() + "] " + msg;
+            logBox.prepend(div);
         }
-    } catch(e) {
-        // Genellikle buraya gelemeden tarayıcı donar veya "Bellek Yetersiz" der
-        log("Sistem Sınırına Ulaşıldı: " + e.message, "err");
-    }
-}
+
+        // 1. JIT SPRAY: İşlemciyi Optimize Edilmiş Kodla Boğma
+        function startJitSpray() {
+            stat.innerText = "JIT Spray Çalışıyor...";
+            log("JIT döngüsü başlatıldı...");
+            
+            function jit_func(a, b) {
+                return a + b;
+            }
+
+            try {
+                for(let i = 0; i < 1000000; i++) {
+                    jit_func(i, i + 1);
+                    if(i % 100000 === 0) log("JIT İlerleme: " + i);
+                }
+                log("Sistem donmadı, JIT direnci yüksek.");
+            } catch(e) {
+                log("HATA: " + e.message);
+            }
+        }
+
+        // 2. RAM ŞİŞİRME: Tarayıcıyı "Yetersiz Bellek" Hatasına Zorlama
+        let bigData = [];
+        function startMemLeak() {
+            stat.innerText = "RAM Şişiriliyor...";
+            log("Büyük TypedArray'ler oluşturuluyor...");
+            
+            try {
+                for(let i = 0; i < 2000; i++) {
+                    bigData.push(new Uint32Array(0x10000).fill(0x41414141));
+                    if(i % 100 === 0) {
+                        log("Tahsis edilen blok: " + i);
+                    }
+                }
+            } catch(e) {
+                stat.innerText = "CRASH OLABİLİR!";
+                log("BELLEK PATLADI: " + e.message);
+            }
+        }
+
+        // 3. TYPE CONFUSION: Tarayıcının Mantığını Şaşırtma
+        function startTypeConfuse() {
+            stat.innerText = "Type Confusion Deneniyor...";
+            log("Dinamik tip değişikliği başlatıldı...");
+
+            function confuse(obj) {
+                return obj.val + 1;
+            }
+
+            // Önce sayılarla eğit
+            for(let i = 0; i < 10000; i++) confuse({val: i});
+
+            // Aniden string/object göndererek tarayıcıyı şaşırt
+            log("Beklenmeyen tip gönderiliyor...");
+            let res = confuse({val: "X"});
+            log("Sonuç: " + res);
+            
+            // Eğer sistem burada hata kodu vermezse, tarayıcı güvenlidir demektir
+        }
+    </script>
+</body>
+</html>
