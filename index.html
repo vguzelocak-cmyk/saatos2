@@ -1,52 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>PS4 13.02 Kernel Dumper</title>
-<style>
-    body { background-color: #1a1a1a; color: #00ff00; font-family: monospace; text-align: center; }
-    #box { border: 2px solid #00ff00; padding: 20px; width: 400px; margin: 50px auto; border-radius: 10px; }
-    input { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; width: 80%; margin: 10px 0; }
-    button { background: #00ff00; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
-    button:hover { background: #00cc00; }
-    #log { margin-top: 20px; text-align: left; padding: 10px; font-size: 12px; color: #00cc00; }
-</style>
+    <meta charset="UTF-8">
+    <title>PS4 13.02 Dumper</title>
+    <style>
+        body { background-color: #000; color: #00ff00; font-family: 'Courier New', monospace; text-align: center; }
+        #main { border: 2px solid #00ff00; width: 450px; margin: 100px auto; padding: 20px; box-shadow: 0 0 15px #00ff00; }
+        input { background: #111; color: #00ff00; border: 1px solid #00ff00; padding: 8px; width: 200px; }
+        button { background: #00ff00; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        #log { margin-top: 20px; text-align: left; font-size: 13px; border-top: 1px solid #333; padding-top: 10px; }
+    </style>
 </head>
 <body>
 
-<div id="box">
-    <h2>PS4 13.02 DUMPER</h2>
-    <p>Bilgisayar IP Adresini Gir:</p>
-    <input type="text" id="pc_ip" value="192.168.1.22">
-    <br>
-    <button onclick="startDump()">BAĞLANTIYI ATEŞLE</button>
-    <div id="log">Durum: Bekliyor...</div>
+<div id="main">
+    <h1>PS4 13.02 DUMPER</h1>
+    <p>PC IP: <input type="text" id="pc_ip" value="192.168.1.22"></p>
+    <button onclick="start()">DUMP START</button>
+    <div id="log">Durum: Bekleniyor...</div>
 </div>
 
 <script>
-function startDump() {
-    var pc_ip = document.getElementById('pc_ip').value;
-    var log = document.getElementById('log');
-    
-    log.innerHTML = "Ağ yolu kontrol ediliyor...";
+async function start() {
+    let pc_ip = document.getElementById('pc_ip').value;
+    let logElement = document.getElementById('log');
+    logElement.innerHTML = "Saldırı başlatıldı: " + pc_ip + ":9090";
 
-    // 13.02 WebKit zorlaması için Image Objesi kullanıyoruz
-    // Bu yöntem firewall'ları aşmada WebSocket'ten daha başarılıdır
-    var img = new Image();
-    
-    img.onload = function() {
-        log.innerHTML += "<br>[+] BAĞLANTI KURULDU!";
-    };
-    
-    img.onerror = function() {
-        // Netcat HTTP cevabı vermediği için buraya düşmesi normaldir
-        // Ama terminalde IP'yi gördüysen bağlantı gitmiş demektir
-        log.innerHTML += "<br>[?] Paket gönderildi. Terminale bak!";
-    };
-
-    // Netcat'e (nc) TCP üzerinden veri fırlatıyoruz
-    img.src = "http://" + pc_ip + ":9090/ps4_dump?ver=1302&status=start";
-    
-    log.innerHTML += "<br>> Veri sızdırılıyor: " + pc_ip + ":9090";
+    try {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "http://" + pc_ip + ":9090/dump", true);
+        
+        // 13.02 için payload mesajı
+        var payload = "PS4_13.02_DUMP_INIT_DORUK_SUCCESS"; 
+        
+        xhr.send(payload);
+        logElement.innerHTML += "<br>> Paket fırlatıldı! Terminale bak.";
+        
+    } catch(e) {
+        logElement.innerHTML += "<br>> Hata: " + e.message;
+    }
 }
 </script>
 
