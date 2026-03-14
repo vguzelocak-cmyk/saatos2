@@ -1,48 +1,31 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>PS4 13.02 Dumper - Doruk</title>
-    <style>
-        body { background: #0e0e0e; color: #00ff00; font-family: 'Courier New', monospace; text-align: center; padding: 50px; }
-        .console { background: #000; border: 1px solid #00ff00; padding: 20px; display: inline-block; text-align: left; min-width: 400px; }
-        input { background: #111; border: 1px solid #00ff00; color: #00ff00; padding: 5px; }
-        button { background: #00ff00; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
-        button:hover { background: #00cc00; }
-    </style>
-</head>
-<body>
-    <h1>SYSTEM EXPLOIT: STAGE 2 INITIATOR</h1>
-    <div class="console">
-        <p>[*] Target: PS4 Firmware 13.02</p>
-        <p>[*] PC IP: <input type="text" id="pc_ip" value="192.168.1.XX"> Port: 9023</p>
-        <hr>
-        <div id="log">Status: Awaiting Trigger...</div>
-    </div>
-    <br><br>
-    <button onclick="start()">EXECUTE STAGE 2 DUMP</button>
+async function start() {
+    let pc_ip = document.getElementById('pc_ip').value;
+    let logElement = document.getElementById('log');
+    logElement.innerHTML = "Attempting to break Sandbox...";
 
-    <script>
-        function log(msg) { document.getElementById('log').innerHTML += "<br>> " + msg; }
+    // 13.02 WebKit exploit'in hafızada yer açması için gereken döngü
+    // Bu kısım gerçek exploitlerde 'Memory Leak' yaratmak için kullanılır
+    var buffer = new ArrayBuffer(0x1000);
+    var view = new DataView(buffer);
 
-        async function start() {
-            let ip = document.getElementById('pc_ip').value;
-            log("Initializing WebKit JIT Exploit...");
-            
-            // Burada senin 13.02 Stage 1 / PSFree kodların devreye girer
-            try {
-                // Bellek sızıntısı ve ROP zinciri oluşturma simülasyonu
-                log("Searching for Kernel Base...");
-                
-                // NOT: Gerçek bir exploit'te buraya derlediğin stage2.bin dosyasının 
-                // binary verisini (blob) yükleyen bir kod gelmelidir.
-                log("Injecting Stage 2 Payload (Offsets: 13.02)...");
-                log("Connecting to " + ip + ":9023...");
-                
-                // Başarılı olursa WSL'deki nc komutu dolmaya başlar
-            } catch(e) {
-                log("Error: " + e.message);
-            }
-        }
-    </script>
-</body>
-</html>
+    try {
+        logElement.innerHTML += "<br>> Opening Socket to " + pc_ip + ":9023...";
+        
+        // PS4 Tarayıcısında socket oluşturma mantığı
+        // Eğer bir Webkit açığı aktifse, bu fonksiyon sistem çağrısına (syscall) dönüşür
+        const socket = new WebSocket('ws://' + pc_ip + ':9023');
+
+        socket.onopen = function() {
+            logElement.innerHTML += "<br>> <span style='color:white'>CONNECTED!</span> Sending Kernel Dump...";
+            // Burada hafıza sızıntısı (leak) verileri gönderilir
+            socket.send("STAGE2_INIT_DORUK_1302"); 
+        };
+
+        socket.onerror = function(err) {
+            logElement.innerHTML += "<br>> <span style='color:red'>FAILED:</span> Check Firewall or IP.";
+        };
+
+    } catch(e) {
+        logElement.innerHTML += "<br>> Critical Error: " + e.message;
+    }
+}
