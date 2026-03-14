@@ -1,20 +1,54 @@
 async function start() {
-    let pc_ip = document.getElementById('pc_ip').value;
-    let logElement = document.getElementById('log');
-    logElement.innerHTML = "Saldırı başlatıldı: " + pc_ip + ":9090";
+    const pc_ip = document.getElementById("pc_ip").value.trim();
+    const logElement = document.getElementById("log");
 
-    // 13.02 için zorlamalı veri gönderme (XHR yöntemi)
-    try {
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", "http://" + pc_ip + ":9090/dump", true);
-        
-        // Hafızadaki o meşhur '0xDEADC0DE' offsetlerini içeren 
-        // veriyi paketleyip gönderiyoruz
-        var payload = "PS4_13.02_DUMP_INIT_DORUK"; 
-        xhr.send(payload);
+    function log(msg){
+        logElement.innerHTML += "<br>> " + msg;
+    }
 
-        logElement.innerHTML += "<br>> Paket fırlatıldı! Terminale bak.";
-    } catch(e) {
-        logElement.innerHTML += "<br>> Hata: " + e.message;
+    logElement.innerHTML = "";
+
+    if(!pc_ip){
+        log("IP adresi girilmedi.");
+        return;
+    }
+
+    log("Initializing memory buffer...");
+
+    // test amaçlı buffer
+    const buffer = new ArrayBuffer(0x1000);
+    const view = new DataView(buffer);
+
+    try{
+
+        log("Opening WebSocket connection to " + pc_ip + ":9023");
+
+        const socket = new WebSocket(`ws://${pc_ip}:9023`);
+
+        socket.onopen = () => {
+            log("<span style='color:lime'>CONNECTED</span>");
+
+            const payload = "STAGE2_INIT_DORUK_1302";
+            log("Sending data...");
+
+            socket.send(payload);
+        };
+
+        socket.onmessage = (event) => {
+            log("Response: " + event.data);
+        };
+
+        socket.onerror = (err) => {
+            log("<span style='color:red'>Connection error</span>");
+        };
+
+        socket.onclose = () => {
+            log("Connection closed.");
+        };
+
+    } catch(e){
+
+        log("Critical error: " + e.message);
+
     }
 }
