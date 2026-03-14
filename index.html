@@ -1,83 +1,50 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>PS4 13.02 Kernel Research Tool</title>
+    <title>PS4 13.02 Research Protocol</title>
     <style>
-        body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', Courier, monospace; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        .wrapper { border: 2px solid #00ff41; padding: 40px; background: rgba(0, 20, 0, 0.9); box-shadow: 0 0 30px #00ff41; border-radius: 15px; width: 500px; z-index: 10; }
-        h1 { font-size: 22px; margin-bottom: 20px; text-shadow: 0 0 10px #00ff41; border-bottom: 1px solid #00ff41; padding-bottom: 10px; }
-        input { background: #000; border: 1px solid #00ff41; color: #00ff41; padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; text-align: center; }
-        .btn-group { display: flex; gap: 10px; justify-content: center; }
-        button { background: #00ff41; color: #000; border: none; padding: 15px 25px; font-weight: bold; cursor: pointer; transition: 0.3s; text-transform: uppercase; }
-        button:hover { background: #fff; box-shadow: 0 0 20px #fff; }
-        #status-box { margin-top: 25px; background: #000; border: 1px solid #333; height: 120px; overflow-y: auto; padding: 10px; font-size: 13px; text-align: left; }
-        .matrix-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; color: rgba(0, 255, 65, 0.1); font-size: 10px; z-index: 1; overflow: hidden; pointer-events: none; }
+        body { background: #000; color: #0f0; font-family: monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .box { border: 1px dashed #0f0; padding: 40px; text-align: center; background: #050505; }
+        input { background: #000; border: 1px solid #0f0; color: #0f0; padding: 10px; width: 250px; margin-bottom: 20px; }
+        button { background: #0f0; color: #000; border: none; padding: 15px 30px; font-weight: bold; cursor: pointer; }
+        #status { margin-top: 20px; font-size: 12px; color: #888; }
     </style>
 </head>
 <body>
 
-<div class="matrix-bg" id="matrix"></div>
-
-<div class="wrapper">
-    <h1>PS4 13.02 RESEARCH UI</h1>
-    <p>Hedef PC (Netcat) IP Adresi:</p>
-    <input type="text" id="pc_ip" value="192.168.1.22" placeholder="Örn: 192.168.1.22">
-    
-    <div class="btn-group">
-        <button onclick="startResearch()">Saldırıyı Başlat</button>
-        <button style="background: #ff0000; color: #fff;" onclick="location.reload()">Sıfırla</button>
-    </div>
-
-    <div id="status-box">
-        [+] Sistem Beklemede...<br>
-        [+] 13.02 WebKit Sandbox Tespit Edildi.
-    </div>
+<div class="box">
+    <h1>13.02 PROTOCOL v1.0</h1>
+    <input type="text" id="pc_ip" value="192.168.1.22">
+    <br>
+    <button onclick="forceConnect()">BYPASS & CONNECT</button>
+    <div id="status">Sinyal bekleniyor...</div>
 </div>
 
 <script>
-function print(msg) {
-    let box = document.getElementById('status-box');
-    box.innerHTML += "<br>> " + msg;
-    box.scrollTop = box.scrollHeight;
-}
+function forceConnect() {
+    var ip = document.getElementById('pc_ip').value;
+    var status = document.getElementById('status');
+    status.innerHTML = "Soket zorlanıyor...";
 
-async function startResearch() {
-    let pc_ip = document.getElementById('pc_ip').value;
-    print("Arama başlatılıyor: " + pc_ip);
-    print("Hafıza Spreyleme (Heap Spray) aktif ediliyor...");
-
-    // Sandbox Kırma Girişimi: Büyük ArrayBuffer'lar ile hafızayı manipüle etme
+    // YÖNTEM 1: WebSocket (Bazı sürümlerde daha etkilidir)
     try {
-        var storage = [];
-        for (var i = 0; i < 50; i++) {
-            // Hafızada büyük delikler açmak için 1MB'lık bloklar
-            storage[i] = new ArrayBuffer(1024 * 1024);
-            let view = new Uint32Array(storage[i]);
-            view[0] = 0xDEADC0DE; // Bizim meşhur imzamız
-        }
-        print("[SUCCESS] Hafıza şişirildi.");
-    } catch(e) {
-        print("[ERROR] Bellek hatası: " + e.message);
-    }
+        var ws = new WebSocket("ws://" + ip + ":9090");
+        ws.onopen = function() { status.innerHTML = "BAĞLANDI!"; };
+    } catch(e) {}
 
-    print("Soket sızıntısı deneniyor...");
-    
-    // Web sızıntısı için Image objesi (Firewall delici)
-    var leak = new Image();
-    leak.src = "http://" + pc_ip + ":9090/KERNEL_LEAK_DETECTION?offset=0xDEADC0DE&ver=1302";
-    
-    leak.onerror = function() {
-        print("[!] Paket Netcat'e fırlatıldı! Terminale bak.");
-    };
+    // YÖNTEM 2: Image Beacon (Görünmez sızma)
+    var b = new Image();
+    b.src = "http://" + ip + ":9090/KERNEL_DUMP_START";
+
+    // YÖNTEM 3: Script Tag (CSP Bypass)
+    // Tarayıcı bir script yüklüyormuş gibi davranarak paket gönderir
+    var s = document.createElement('script');
+    s.src = "http://" + ip + ":9090/DORUK_SUCCESS.js";
+    document.body.appendChild(s);
+
+    status.innerHTML += "<br>3 farklı koldan paket fırlatıldı.";
 }
-
-// Matrix Efekti (Görsellik için)
-setInterval(() => {
-    let m = document.getElementById('matrix');
-    m.innerHTML += Math.random().toString(2).substr(2, 8) + " ";
-    if(m.innerHTML.length > 2000) m.innerHTML = "";
-}, 100);
 </script>
 
 </body>
