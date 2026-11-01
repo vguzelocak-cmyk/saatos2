@@ -19,6 +19,7 @@ IMPORT(RtlInitUnicodeString, void, unicode_string *, const uint16_t *);
 IMPORT(RtlDuplicateUnicodeString, uint32_t, uint32_t, const unicode_string *, unicode_string *);
 IMPORT(RtlFreeUnicodeString, void, unicode_string *);
 IMPORT(RtlCompareMemory, size_t, const void *, const void *, size_t);
+IMPORT(strchr, char *, const char *, int);
 IMPORT(KeInitializeEvent, void, void *, int, uint8_t);
 IMPORT(KeSetEvent, int32_t, void *, int32_t, uint8_t);
 IMPORT(KeResetEvent, int32_t, void *);
@@ -50,6 +51,7 @@ static void bind_all(void)
 {
     BIND(ExAllocatePoolWithTag); BIND(ExFreePoolWithTag);
     BIND(RtlInitUnicodeString); BIND(RtlDuplicateUnicodeString); BIND(RtlFreeUnicodeString); BIND(RtlCompareMemory);
+    BIND(strchr);
     BIND(KeInitializeEvent); BIND(KeSetEvent); BIND(KeResetEvent); BIND(KeReadStateEvent); BIND(KeWaitForSingleObject);
     BIND(KeInitializeMutex); BIND(KeReleaseMutex);
     BIND(KeInitializeGuardedMutex); BIND(KeAcquireGuardedMutex); BIND(KeReleaseGuardedMutex); BIND(KeAreAllApcsDisabled);
@@ -99,6 +101,22 @@ static void test_unicode(void)
     free(long_text);
     assert(p_RtlCompareMemory("abcX", "abcY", 4) == 3);
     assert(p_RtlCompareMemory("abc", "abc", 3) == 3);
+}
+static void test_strings(void)
+{
+    const char *literal = "abca";
+    assert(p_strchr(literal, 'a') == literal);
+    assert(p_strchr(literal, 'b') == literal + 1);
+    assert(p_strchr(literal, '\0') == literal + 4);
+    assert(!p_strchr(literal, 'x'));
+    char mutable[] = {'a', (char)0xff, 'b', '\0'};
+    assert(p_strchr(mutable, 0xff) == mutable + 1);
+    char *match = p_strchr(mutable, 'b');
+    assert(match == mutable + 2);
+    *match = 'B';
+    assert(mutable[2] == 'B');
+    const char *empty = "";
+    assert(p_strchr(empty, '\0') == empty);
 }
 
 typedef struct { void *object; uint32_t result; int release_mutex; } wait_context;
@@ -256,6 +274,7 @@ int main(int argc, char **argv)
     bind_all();
     if (!strcmp(argv[1], "pool")) test_pool();
     else if (!strcmp(argv[1], "unicode")) test_unicode();
+    else if (!strcmp(argv[1], "strings")) test_strings();
     else if (!strcmp(argv[1], "events")) test_events();
     else if (!strcmp(argv[1], "mutex")) test_mutex();
     else if (!strcmp(argv[1], "locks")) test_locks();

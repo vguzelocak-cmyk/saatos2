@@ -140,7 +140,11 @@ static int NTAPI nt_memcmp(const void *a, const void *b, size_t n) { return memc
 static size_t NTAPI nt_strlen(const char *s) { return strlen(s); }
 static size_t NTAPI nt_strnlen(const char *s, size_t n) { return strnlen(s, n); }
 static int NTAPI nt_strcmp(const char *a, const char *b) { return strcmp(a, b); }
-static char *NTAPI nt_strchr(const char *s, int c) { return strchr(s, c); }
+static char *NTAPI nt_strchr(const char *s, int c)
+{
+    /* Keep the Windows CRT ABI even when host headers preserve input constness. */
+    return (char *)strchr(s, c);
+}
 
 /* Virtual IRQL/APC state is local to this runtime, not Linux IRQ masking. */
 static uint8_t NTAPI nt_KeGetCurrentIrql(void) { return irql; }
