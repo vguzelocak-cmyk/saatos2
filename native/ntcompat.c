@@ -495,9 +495,8 @@ static void NTAPI nt_KeBugCheckEx(uint32_t code, uintptr_t a, uintptr_t b, uintp
     abort();
 }
 
-typedef struct { const char *module, *name; void *address; } export_entry;
 #define NT(name) {"ntoskrnl.exe", #name, (void *)nt_##name}
-static const export_entry exports[] = {
+static const nt_export exports[] = {
     NT(ExAllocatePoolWithTag), NT(ExFreePoolWithTag), NT(ExFreePool),
     NT(RtlInitUnicodeString), NT(RtlDuplicateUnicodeString), NT(RtlFreeUnicodeString), NT(RtlCompareMemory),
     NT(memcpy), NT(memmove), NT(memset), NT(memcmp), NT(strlen), NT(strnlen), NT(strcmp), NT(strchr), NT(wcslen),
@@ -523,7 +522,16 @@ void *driverlab_resolve(const char *module, const char *symbol)
     for (size_t i = 0; i < sizeof(exports) / sizeof(exports[0]); ++i)
         if (!strcasecmp(module, exports[i].module) && !strcmp(symbol, exports[i].name))
             return exports[i].address;
+    const nt_export *tables[] = {driverlab_io_exports, driverlab_crypto_exports, driverlab_memory_exports};
+    const size_t counts[] = {driverlab_io_count, driverlab_crypto_count, driverlab_memory_count};
+    for (size_t table = 0; table < 3; ++table)
+        for (size_t i = 0; i < counts[table]; ++i)
+            if (!strcasecmp(module, tables[table][i].module) && !strcmp(symbol, tables[table][i].name))
+                return tables[table][i].address;
     return NULL;
 }
-size_t driverlab_export_count(void) { return sizeof(exports) / sizeof(exports[0]); }
+size_t driverlab_export_count(void)
+{
+    return sizeof(exports) / sizeof(exports[0]) + driverlab_io_count + driverlab_crypto_count + driverlab_memory_count;
+}
 void driverlab_set_image(void *base, size_t size) { image_base = base; image_size = size; }

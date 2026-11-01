@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from driverlab.native import compiler_command
 
 
 @unittest.skipUnless(sys.platform == "linux" and platform.machine() == "x86_64"
@@ -17,9 +18,7 @@ class KernelCompatibilityTests(unittest.TestCase):
         cls.binary = Path(cls.directory.name) / "nt-tests"
         root = Path(__file__).resolve().parents[1]
         compiler = shutil.which("cc") or shutil.which("gcc")
-        result = subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-pthread",
-                                 "-I", str(root / "native"), str(root / "tests/native_nt_test.c"),
-                                 str(root / "native/ntcompat.c"), "-o", str(cls.binary)],
+        result = subprocess.run(compiler_command(compiler, cls.binary, root / "tests/native_nt_test.c"),
                                 capture_output=True, text=True, timeout=30)
         if result.returncode:
             raise RuntimeError(result.stderr)

@@ -33,8 +33,10 @@ Aşağıdaki isimler `ntoskrnl.exe` ve modül takma adı `ntkrnlmp.exe` üzerind
 | Fatal sürücü hatası | `KeBugCheckEx` | Kodu ve parametreleri raporlayıp worker'ı sonlandırır; Linux'a kernel panic yaptırmaz. |
 
 `KeQueryPerformanceCounter`, ayrıca `HAL.dll` üzerinden çözülür. Toplam
-50 farklı işlev ve 51 modül/sembol export kaydı vardır. Hiçbir ordinal
-eşlemesi veya `cng.sys` exportu yoktur.
+temel katmanda 50 farklı işlev ve 51 modül/sembol export kaydı vardır.
+Ek servislerle birlikte toplam 83 işlev ve 84 export kaydı bulunur.
+Ordinal eşlemesi yoktur. `cng.sys` ve ek NT servisleri
+[ayrı belgede](native-services.md) açıklanır.
 
 ## Kapsam sınırları
 
@@ -48,9 +50,10 @@ eşlemesi veya `cng.sys` exportu yoktur.
 - Sanal IRQL kısıtları yalnızca bu kütüphanenin kontrol ettiği işlevlere
   uygulanır. DISPATCH_LEVEL event yoklaması desteklenir; bloklayıcı bekleme
   ve mutex beklemesi APC_LEVEL üstünde reddedilir.
-- Mutex thread-exit/abandonment, wait-many, I/O/IRP/IOCTL, servis yaşam
-  döngüsü, registry, kernel callback'leri, pushlock, MDL, fiziksel bellek,
-  CNG, SEH/unwind ve veri exportları uygulanmadı.
+- Mutex thread-exit/abandonment, wait-many, IRP/IOCTL/device stack, servis
+  yaşam döngüsü, kalıcı registry, kernel callback'leri, pushlock, fiziksel
+  bellek, SEH/unwind ve veri exportları uygulanmadı. Dosya I/O, volatile
+  registry, belirli CNG işlemleri ve süreç içi MDL desteği vardır.
 - Hatalı API sözleşmeleri worker'ı sonlandırabilir. Bu çalışma yerel kod
   çalıştırır, bir güvenlik sandbox'ı değildir ve root gerektirmez.
 
@@ -69,5 +72,5 @@ eşzamanlı bekleyenleri, recursive mutex sahipliğini, çok iş parçacıklı
 guarded mutex/spinlock sayaçlarını ve rundown kapanmasını sınar.
 
 Bu testler Vanguard çalıştırmaz. Kullanıcının paylaştığı statik import
-raporundaki 129 sembolün 43'ünün ad/modül eşlemesi bu sürümde bulunur;
-bu sayı davranış uyumluluğu veya Vanguard'ın çalışabilirlik oranı değildir.
+raporundaki sembollerin bir kısmı hâlâ eksiktir; eşleşen sembol sayısı
+davranış uyumluluğu veya Vanguard'ın çalışabilirlik oranı değildir.

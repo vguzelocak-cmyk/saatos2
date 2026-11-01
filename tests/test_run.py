@@ -12,6 +12,7 @@ from driverlab.pe import PEError
 from driverlab.run import Image
 from examples.make_driver import make_image
 from examples.make_kernel_driver import make_image as kernel_image
+from examples.make_services_driver import make_image as services_image
 from test_pe import image as imported_image
 
 
@@ -94,7 +95,7 @@ class NativeExecutionTests(unittest.TestCase):
         self.assertIn("terminated by signal", result.stderr)
 
     def test_hung_native_code_is_stopped(self):
-        result = self.run_driver(make_image(behavior="loop"), "--execute", "--timeout", "1")
+        result = self.run_driver(make_image(behavior="loop"), "--execute", "--timeout", "3")
         self.assertEqual(result.returncode, 2)
         self.assertIn("timed out", result.stderr)
 
@@ -119,6 +120,15 @@ class NativeExecutionTests(unittest.TestCase):
         self.assertIn("UnimplementedTestRoutine", result.stderr)
         self.assertIn("driver was not executed", result.stderr)
         self.assertEqual(result.stdout, "")
+
+    def test_pe_driver_calls_io_registry_crypto_and_mdl_services(self):
+        with tempfile.TemporaryDirectory() as state:
+            result = self.run_driver(services_image(), "--execute", "--state-dir", state)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["ntstatus"], "0x00000000")
+            self.assertEqual(report["resolved_import_count"], 22)
+            self.assertEqual((Path(state) / "files/C/services.bin").read_bytes(), b"abc")
 
     def test_example_generation_reuses_matching_and_preserves_different_file(self):
         root = Path(__file__).resolve().parents[1]
