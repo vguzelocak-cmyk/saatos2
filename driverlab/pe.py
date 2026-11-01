@@ -106,7 +106,7 @@ class PE:
     def directory(self, index):
         return self.directories[index] if index < len(self.directories) else (0, 0)
 
-    def imports(self):
+    def imports(self, *, include_iat=False):
         rva, size = self.directory(1)
         if not rva and not size:
             return []
@@ -121,6 +121,8 @@ class PE:
                 return result
             if not name or not (original or first):
                 raise PEError("Incomplete import descriptor")
+            if include_iat and (not first or first % 8):
+                raise PEError("Import descriptor has no aligned IAT")
             if not original and stamp:
                 raise PEError("Bound imports without a lookup table are unsupported")
             dll = self.string(name)
@@ -147,6 +149,10 @@ class PE:
                     if not symbol:
                         raise PEError("Empty imported symbol name")
                     symbols.append({"name": symbol, "hint": hint})
+                if include_iat:
+                    slot = first + index * 8
+                    self.at_rva(slot, 8)
+                    symbols[-1]["iat_rva"] = slot
             else:
                 raise PEError("Unterminated or oversized import lookup table")
             result.append({"module": dll, "symbols": symbols})
@@ -156,7 +162,7 @@ class PE:
         imports = self.imports()
         limitations = [
             "Static imports do not capture dynamically resolved dependencies or runtime behavior.",
-            "No Windows kernel APIs are implemented; no driver is loaded or executed.",
+            "This is static analysis only; no driver is loaded or executed and runtime API coverage is not checked.",
             "Authenticode signatures and Riot service acceptance are not verified.",
         ]
         if any(self.directory(13)):

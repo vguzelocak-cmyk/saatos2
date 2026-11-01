@@ -2,11 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <uchar.h>
-
-typedef struct {
-    uint16_t length, maximum_length;
-    uint16_t *buffer;
-} unicode_string;
+#include "ntcompat.h"
 
 typedef struct {
     int16_t type, size;
@@ -31,6 +27,7 @@ typedef uint32_t (__attribute__((ms_abi)) *entry_fn)(driver_object *, unicode_st
 
 uint32_t driverlab_call(void *entry, void *base, uint32_t image_size)
 {
+    driverlab_set_image(base, image_size);
     char16_t registry_text[] = u"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\DriverLabTest";
     char16_t name_text[] = u"\\Driver\\DriverLabTest";
     unicode_string registry = {

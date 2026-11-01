@@ -3,6 +3,7 @@
 import argparse
 from pathlib import Path
 import struct
+import sys
 
 
 def make_image(status=0, behavior="return"):
@@ -60,11 +61,27 @@ def make_image(status=0, behavior="return"):
     return bytes(data)
 
 
+def write_image(path, data):
+    try:
+        try:
+            with path.open("xb") as destination:
+                destination.write(data)
+            print(f"Created test driver: {path}")
+        except FileExistsError:
+            with path.open("rb") as source:
+                existing = source.read(len(data) + 1)
+            if existing != data:
+                print(f"Refusing to overwrite different file: {path}", file=sys.stderr)
+                return 2
+            print(f"Using matching existing test driver: {path}")
+    except OSError as error:
+        print(f"Cannot create test driver: {error}", file=sys.stderr)
+        return 2
+    return 0
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    # Preserve existing files instead of silently overwriting a real driver.
-    with args.output.open("xb") as destination:
-        destination.write(make_image())
-    print(f"Created test driver: {args.output}")
+    raise SystemExit(write_image(args.output, make_image()))

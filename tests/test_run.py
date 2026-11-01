@@ -11,6 +11,7 @@ import unittest
 from driverlab.pe import PEError
 from driverlab.run import Image
 from examples.make_driver import make_image
+from examples.make_kernel_driver import make_image as kernel_image
 from test_pe import image as imported_image
 
 
@@ -20,9 +21,22 @@ class LoaderValidationTests(unittest.TestCase):
         self.assertEqual(len(image.relocations), 1)
         self.assertGreater(image.relocations[0], 0x1000)
 
-    def test_kernel_imports_rejected_before_execution(self):
-        with self.assertRaisesRegex(PEError, "ntoskrnl.exe.*not executed"):
-            Image(imported_image())
+    def test_import_iat_locations_are_extracted(self):
+        from driverlab.pe import PE
+        imports = PE(imported_image()).imports(include_iat=True)
+        self.assertEqual([symbol["iat_rva"] for symbol in imports[0]["symbols"]], [0x10C0, 0x10C8])
+
+    def test_invalid_iat_is_rejected(self):
+        data = bytearray(kernel_image())
+        struct.pack_into("<I", data, 0x400 + 16, 0xFFFFFFF0)
+        with self.assertRaises(PEError):
+            Image(data)
+
+    def test_misaligned_iat_is_rejected(self):
+        data = bytearray(kernel_image())
+        struct.pack_into("<I", data, 0x400 + 16, 0x2201)
+        with self.assertRaisesRegex(PEError, "aligned IAT"):
+            Image(data)
 
     def test_image_extent_is_validated(self):
         data = bytearray(make_image())
@@ -88,6 +102,37 @@ class NativeExecutionTests(unittest.TestCase):
         result = self.run_driver(make_image())
         self.assertEqual(result.returncode, 2)
         self.assertIn("requires --execute", result.stderr)
+
+    def test_driver_calls_imported_kernel_apis_and_hal(self):
+        result = self.run_driver(kernel_image(), "--execute")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["ntstatus"], "0x00000000")
+        self.assertEqual(report["resolved_import_count"], 9)
+        self.assertEqual(report["kernel_compatibility"], "user-mode-subset")
+        self.assertGreater(report["kernel_exports_available"], 40)
+        self.assertFalse(report["windows_kernel_implemented"])
+
+    def test_unimplemented_import_prevents_entry_call(self):
+        result = self.run_driver(kernel_image(missing_import=True), "--execute")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("UnimplementedTestRoutine", result.stderr)
+        self.assertIn("driver was not executed", result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_example_generation_reuses_matching_and_preserves_different_file(self):
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "example.sys"
+            command = [sys.executable, str(root / "examples/make_kernel_driver.py"), str(output)]
+            for _ in range(2):
+                result = subprocess.run(command, cwd=root, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+            output.write_bytes(b"user-owned-file")
+            result = subprocess.run(command, cwd=root, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(output.read_bytes(), b"user-owned-file")
+            self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":

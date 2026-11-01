@@ -1,4 +1,4 @@
-"""Experimental user-mode PE execution, for small controlled test drivers only."""
+"""Experimental user-mode PE execution with a limited NT compatibility runtime."""
 
 import argparse
 import ctypes
@@ -27,10 +27,14 @@ class Image:
         self.pe = pe = PE(data)
         if pe.machine != 0x8664 or pe.subsystem != 1:
             raise PEError("Execution requires an AMD64 Native image")
-        imports = pe.imports()
-        if imports:
-            names = ", ".join(module["module"] for module in imports)
-            raise PEError(f"Windows kernel imports are not implemented: {names}. Driver was not executed.")
+        self.imports = pe.imports(include_iat=True)
+        self.iat_slots = set()
+        for module in self.imports:
+            for symbol in module["symbols"]:
+                slot = symbol["iat_rva"]
+                if slot in self.iat_slots:
+                    raise PEError("Overlapping IAT slots")
+                self.iat_slots.add(slot)
         for index, label in ((9, "TLS"), (13, "delay imports"), (14, "CLR")):
             if any(pe.directory(index)):
                 raise PEError(f"{label} is not supported by this experimental executor")
@@ -102,7 +106,24 @@ class Image:
             cursor += length
         return sorted(targets)
 
+    def resolve_imports(self, bridge):
+        bridge.driverlab_resolve.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+        bridge.driverlab_resolve.restype = ctypes.c_void_p
+        resolved, missing = [], []
+        for module in self.imports:
+            for symbol in module["symbols"]:
+                name = symbol.get("name", f"#{symbol.get('ordinal')}")
+                pointer = bridge.driverlab_resolve(module["module"].encode("ascii"), name.encode("ascii"))
+                if pointer is None:
+                    missing.append(f"{module['module']}!{name}")
+                else:
+                    resolved.append((symbol["iat_rva"], pointer))
+        if missing:
+            raise PEError("Unsupported kernel imports (driver was not executed): " + ", ".join(missing))
+        return resolved
+
     def execute(self, bridge):
+        bindings = self.resolve_imports(bridge)
         with mmap.mmap(-1, self.size, prot=mmap.PROT_READ | mmap.PROT_WRITE) as memory:
             address = ctypes.addressof(ctypes.c_char.from_buffer(memory))
             pe = self.pe
@@ -113,6 +134,8 @@ class Image:
             for target in self.relocations:
                 original = struct.unpack_from("<Q", memory, target)[0]
                 struct.pack_into("<Q", memory, target, (original + delta) & 0xFFFFFFFFFFFFFFFF)
+            for slot, pointer in bindings:
+                struct.pack_into("<Q", memory, slot, pointer)
             libc = ctypes.CDLL(None, use_errno=True)
             libc.mprotect.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
             libc.mprotect.restype = ctypes.c_int
@@ -142,21 +165,27 @@ def worker(path):
     compiler = shutil.which("cc") or shutil.which("gcc")
     if not compiler:
         raise PEError("Install a C compiler (cc or gcc) to build the ABI bridge")
-    source = Path(__file__).resolve().parents[1] / "native" / "bridge.c"
+    native = Path(__file__).resolve().parents[1] / "native"
     with tempfile.TemporaryDirectory(prefix="driverlab-") as directory:
         output = Path(directory) / "bridge.so"
         result = subprocess.run([compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-shared", "-fPIC",
-                                 str(source), "-o", str(output)], capture_output=True, text=True, timeout=20)
+                                 str(native / "bridge.c"), str(native / "ntcompat.c"), "-pthread",
+                                 "-o", str(output)], capture_output=True, text=True, timeout=20)
         if result.returncode:
             raise PEError("ABI bridge compilation failed: " + result.stderr.strip())
-        status = image.execute(ctypes.CDLL(str(output)))
+        bridge = ctypes.CDLL(str(output))
+        status = image.execute(bridge)
+        bridge.driverlab_export_count.restype = ctypes.c_size_t
+        exports = bridge.driverlab_export_count()
     print(json.dumps({"driver_entry_called": True, "ntstatus": f"0x{status:08x}",
-                      "nt_success": status < 0x80000000, "windows_kernel_implemented": False}))
+                      "nt_success": status < 0x80000000, "windows_kernel_implemented": False,
+                      "kernel_compatibility": "user-mode-subset", "kernel_exports_available": exports,
+                      "resolved_import_count": sum(len(m["symbols"]) for m in image.imports)}))
     return 0 if status < 0x80000000 else 1
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Experimental native-code executor for small import-free test drivers. Not a sandbox or Vanguard runtime.")
+    parser = argparse.ArgumentParser(description="Experimental native PE executor with a limited user-mode NT runtime. Not a sandbox or Vanguard runtime.")
     parser.add_argument("driver", type=Path)
     parser.add_argument("--execute", action="store_true", help="Execute trusted native code with your current user permissions")
     parser.add_argument("--timeout", type=float, default=5.0, help="Worker time limit in seconds (default: 5)")
