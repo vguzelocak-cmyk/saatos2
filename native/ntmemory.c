@@ -76,9 +76,12 @@ static void unpin_pages(record *p)
         unpin_page(p->start + i * page_size, page_size);
     p->pinned = 0;
 }
-static int accessible(record *p, int writing)
+int driverlab_probe_range(const void *buffer, size_t length, int writing)
 {
-    uintptr_t position = (uintptr_t)p->buffer, end = position + p->length;
+    uintptr_t position = (uintptr_t)buffer;
+    if (!length) return 1;
+    if (!buffer || length > UINTPTR_MAX - position) return 0;
+    uintptr_t end = position + length;
     FILE *maps = fopen("/proc/self/maps", "r");
     if (!maps) return 0;
     char line[512], permissions[5];
@@ -129,7 +132,7 @@ static void NTAPI m_MmProbeAndLockPages(mdl *descriptor, int mode, int operation
     record *p = find(descriptor);
     if (!p || p->pinned || (mode != 0 && mode != 1) || operation < 0 || operation > 2)
         fatal("invalid MDL probe request");
-    if (!accessible(p, operation != 0) || !pin_pages(p))
+    if (!driverlab_probe_range(p->buffer, p->length, operation != 0) || !pin_pages(p))
         fatal("MDL access probe or host page locking failed; Windows SEH is not implemented");
     p->pinned = 1; p->nonpaged = 0;
     descriptor->flags = 2; /* PAGES_LOCKED; physical PFNs remain unavailable. */

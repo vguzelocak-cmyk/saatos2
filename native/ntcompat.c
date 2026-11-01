@@ -26,6 +26,12 @@ static _Thread_local unsigned critical_depth, guarded_depth;
 static void *image_base;
 static size_t image_size;
 
+int driverlab_normal_apcs_disabled(void)
+{
+    return critical_depth != 0 || guarded_depth != 0 || irql >= 1;
+}
+uint8_t driverlab_current_irql(void) { return irql; }
+
 static void fatal(const char *message)
 {
     fprintf(stderr, "driverlab NT contract violation: %s\n", message);
@@ -343,6 +349,7 @@ static uint32_t NTAPI nt_KeWaitForSingleObject(void *key, int reason, int mode,
             break;
         }
         if (object->kind == MUTEX && (!object->depth || pthread_equal(object->owner, pthread_self()))) {
+            if (!object->depth) ++critical_depth;
             object->owner = pthread_self();
             ++object->depth;
             write_signal(object, 1 - (int32_t)object->depth);
@@ -374,7 +381,11 @@ static int32_t NTAPI nt_KeReleaseMutex(void *mutex, uint8_t wait)
     int32_t previous = 1 - (int32_t)object->depth;
     --object->depth;
     write_signal(object, 1 - (int32_t)object->depth);
-    if (!object->depth) pthread_cond_signal(&object->changed);
+    if (!object->depth) {
+        if (!critical_depth) fatal("mutex APC disable counter underflow");
+        --critical_depth;
+        pthread_cond_signal(&object->changed);
+    }
     pthread_mutex_unlock(&object->mutex);
     return previous;
 }
@@ -526,9 +537,9 @@ void *driverlab_resolve(const char *module, const char *symbol)
     for (size_t i = 0; i < sizeof(exports) / sizeof(exports[0]); ++i)
         if (!strcasecmp(module, exports[i].module) && !strcmp(symbol, exports[i].name))
             return exports[i].address;
-    const nt_export *tables[] = {driverlab_io_exports, driverlab_crypto_exports, driverlab_memory_exports};
-    const size_t counts[] = {driverlab_io_count, driverlab_crypto_count, driverlab_memory_count};
-    for (size_t table = 0; table < 3; ++table)
+    const nt_export *tables[] = {driverlab_io_exports, driverlab_crypto_exports, driverlab_memory_exports, driverlab_extras_exports};
+    const size_t counts[] = {driverlab_io_count, driverlab_crypto_count, driverlab_memory_count, driverlab_extras_count};
+    for (size_t table = 0; table < 4; ++table)
         for (size_t i = 0; i < counts[table]; ++i)
             if (!strcasecmp(module, tables[table][i].module) && !strcmp(symbol, tables[table][i].name))
                 return tables[table][i].address;
@@ -536,6 +547,6 @@ void *driverlab_resolve(const char *module, const char *symbol)
 }
 size_t driverlab_export_count(void)
 {
-    return sizeof(exports) / sizeof(exports[0]) + driverlab_io_count + driverlab_crypto_count + driverlab_memory_count;
+    return sizeof(exports) / sizeof(exports[0]) + driverlab_io_count + driverlab_crypto_count + driverlab_memory_count + driverlab_extras_count;
 }
 void driverlab_set_image(void *base, size_t size) { image_base = base; image_size = size; }

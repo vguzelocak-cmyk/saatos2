@@ -2,12 +2,13 @@
 
 Amaç, `vgk.sys` gibi Windows çekirdek sürücülerinin Linux'ta çalıştırılması
 için gerekenleri araştırmak. Proje, PE yükleyicisi ve Windows x64 ABI ile
-çağrılan bir NT uyumluluk kütüphanesi içerir. 83 farklı işlev, modül
-eşlemeleriyle birlikte 84 export kaydı üzerinden kullanılabilir.
+çağrılan bir NT uyumluluk kütüphanesi içerir. İşlev ve veri sembolleri için
+toplam 108 export kaydı kullanılabilir.
 Desteklenen importları kullanan küçük test sürücüleri Linux kullanıcı
 alanında yürütülebilir. **Tam Windows çekirdeği değildir; Vanguard/Valorant
 çalıştırmaz.** İşlevlerin kapsamı [NT runtime](docs/nt-runtime.md) ve
-[I/O, registry, kriptografi ve bellek](docs/native-services.md) belgelerindedir.
+[I/O, registry, kriptografi ve bellek](docs/native-services.md) ile
+[NT uzantıları](docs/nt-extensions.md) belgelerindedir.
 
 ## Kullanım
 
@@ -63,7 +64,7 @@ Başarısız bir doğrulama, sürücünün başarısız NTSTATUS döndürmesine 
 sınamak için korunmuştur.
 
 Çıktıda `kernel_compatibility: "user-mode-subset"`,
-`kernel_exports_available: 84` ve `resolved_import_count: 22` görülür.
+`kernel_exports_available: 108` ve `resolved_import_count: 22` görülür.
 `windows_kernel_implemented: false` tam Windows çekirdeğinin bulunmadığını
 belirtir; eklenen kısmi NT işlevlerini yok sayan bir durum göstergesi değildir.
 
@@ -75,7 +76,7 @@ Import adresleri, modül ve sembol adına göre NT kütüphanesinden çözülüp
 yazılır. Eksik bir import varsa giriş fonksiyonu çağrılmaz ve eksik semboller
 raporlanır. Ordinal importlar için runtime eşlemesi yoktur.
 Sürücünün giriş fonksiyonu döndükten sonra bellek bırakılır; unload,
-callback, I/O ve kalıcı servis yaşam döngüsü uygulanmamıştır.
+  callback, device-stack I/O ve kalıcı servis yaşam döngüsü uygulanmamıştır.
 
 Desteklenmeyen NT importları, TLS, delay-load, CLR ve yazılabilir/yürütülebilir
 bölümler içeren dosyalar yürütülmeden reddedilir.

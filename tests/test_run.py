@@ -114,6 +114,13 @@ class NativeExecutionTests(unittest.TestCase):
         self.assertGreater(report["kernel_exports_available"], 40)
         self.assertFalse(report["windows_kernel_implemented"])
 
+    def test_pe_driver_calls_extensions_and_reads_data_import(self):
+        result = self.run_driver(kernel_image(extensions=True), "--execute")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["ntstatus"], "0x00000000")
+        self.assertEqual(report["resolved_import_count"], 17)
+
     def test_unimplemented_import_prevents_entry_call(self):
         result = self.run_driver(kernel_image(missing_import=True), "--execute")
         self.assertEqual(result.returncode, 2, result.stderr)

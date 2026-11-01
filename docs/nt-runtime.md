@@ -34,9 +34,10 @@ Aşağıdaki isimler `ntoskrnl.exe` ve modül takma adı `ntkrnlmp.exe` üzerind
 
 `KeQueryPerformanceCounter`, ayrıca `HAL.dll` üzerinden çözülür. Toplam
 temel katmanda 50 farklı işlev ve 51 modül/sembol export kaydı vardır.
-Ek servislerle birlikte toplam 83 işlev ve 84 export kaydı bulunur.
+Ek servisler ve uzantılarla birlikte toplam 108 işlev/veri export kaydı bulunur.
 Ordinal eşlemesi yoktur. `cng.sys` ve ek NT servisleri
-[ayrı belgede](native-services.md) açıklanır.
+[ayrı belgede](native-services.md), pushlock/CRT/zaman/CPU/probe uzantıları
+[NT uzantıları belgesinde](nt-extensions.md) açıklanır.
 
 ## Kapsam sınırları
 
@@ -51,9 +52,11 @@ Ordinal eşlemesi yoktur. `cng.sys` ve ek NT servisleri
   uygulanır. DISPATCH_LEVEL event yoklaması desteklenir; bloklayıcı bekleme
   ve mutex beklemesi APC_LEVEL üstünde reddedilir.
 - Mutex thread-exit/abandonment, wait-many, IRP/IOCTL/device stack, servis
-  yaşam döngüsü, kalıcı registry, kernel callback'leri, pushlock, fiziksel
-  bellek, SEH/unwind ve veri exportları uygulanmadı. Dosya I/O, volatile
+  yaşam döngüsü, kalıcı registry, kernel callback'leri, fiziksel bellek ve
+  SEH/unwind uygulanmadı. Dosya I/O, volatile
   registry, belirli CNG işlemleri ve süreç içi MDL desteği vardır.
+  Pushlock desteği ve `KeNumberProcessors` veri exportu eklendi;
+  `PsThreadType`, `IoFileObjectType` gibi kernel object-type exportları yoktur.
 - Hatalı API sözleşmeleri worker'ı sonlandırabilir. Bu çalışma yerel kod
   çalıştırır, bir güvenlik sandbox'ı değildir ve root gerektirmez.
 

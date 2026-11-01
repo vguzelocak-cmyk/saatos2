@@ -18,7 +18,12 @@ void driverlab_set_image(void *base, size_t size);
 typedef struct { const char *module, *name; void *address; } nt_export;
 extern const nt_export driverlab_io_exports[], driverlab_crypto_exports[], driverlab_memory_exports[];
 extern const size_t driverlab_io_count, driverlab_crypto_count, driverlab_memory_count;
+extern const nt_export driverlab_extras_exports[];
+extern const size_t driverlab_extras_count;
 uint32_t driverlab_io_initialize(const char *directory);
+int driverlab_normal_apcs_disabled(void);
+uint8_t driverlab_current_irql(void);
+int driverlab_probe_range(const void *buffer, size_t length, int writing);
 
 typedef struct {
     uint32_t length;

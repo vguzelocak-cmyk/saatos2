@@ -10,11 +10,17 @@ else:
     from make_driver import make_image as base_image, write_image
 
 
-def make_image(*, missing_import=False):
-    data = bytearray(0x1600)
+def make_image(*, missing_import=False, extensions=False):
+    text_size = 1024 if extensions else 512
+    data_offset = 0x200 + text_size
+    relocation_offset = data_offset + 4096
+    data = bytearray(relocation_offset + 512)
     data[:0x200] = base_image()[:0x200]
     nt_names = ["ExAllocatePoolWithTag", "ExFreePoolWithTag", "RtlInitUnicodeString", "RtlCompareMemory",
                 "KeInitializeEvent", "KeSetEvent", "KeWaitForSingleObject", "MmGetSystemRoutineAddress"]
+    if extensions:
+        nt_names.extend(["ExInitializePushLock", "ExAcquirePushLockExclusiveEx", "ExReleasePushLockExclusiveEx",
+                         "KeEnterCriticalRegion", "KeLeaveCriticalRegion", "strcpy_s", "__chkstk", "KeNumberProcessors"])
     if missing_import:
         nt_names.append("UnimplementedTestRoutine")
     modules = [("ntoskrnl.exe", nt_names), ("HAL.dll", ["KeQueryPerformanceCounter"])]
@@ -22,7 +28,7 @@ def make_image(*, missing_import=False):
     slots = {}
 
     def put(rva, payload):
-        offset = rva - 0x2000 + 0x400
+        offset = rva - 0x2000 + data_offset
         data[offset:offset + len(payload)] = payload
 
     for index, (module, imports) in enumerate(modules):
@@ -107,23 +113,41 @@ def make_image(*, missing_import=False):
     call("MmGetSystemRoutineAddress")
     relative(b"\x48\x3b\x05", slots["KeSetEvent"])
     fail_unless_equal()
+    if extensions:
+        emit(b"\x48\xc7\xc0\x00\x20\0\0\x48\xc7\xc1\x39\x30\0\0")  # RAX=8192, RCX=12345
+        call("__chkstk")
+        emit(b"\x48\x3d\x00\x20\0\0"); fail_unless_equal()
+        emit(b"\x48\x81\xf9\x39\x30\0\0"); fail_unless_equal()
+        lea_rcx(0x2A00); call("ExInitializePushLock")
+        call("KeEnterCriticalRegion")
+        lea_rcx(0x2A00); emit(b"\x31\xd2"); call("ExAcquirePushLockExclusiveEx")
+        lea_rcx(0x2A00); emit(b"\x31\xd2"); call("ExReleasePushLockExclusiveEx")
+        call("KeLeaveCriticalRegion")
+        lea_rcx(0x2A20); emit(b"\xba\x10\0\0\0"); relative(b"\x4c\x8d\x05", 0x2A40)
+        call("strcpy_s"); emit(b"\x85\xc0"); fail_unless_equal()
+        lea_rcx(0x2A20); lea_rdx(0x2A40); emit(b"\x41\xb8\x07\0\0\0")
+        call("RtlCompareMemory"); emit(b"\x48\x83\xf8\x07"); fail_unless_equal()
+        relative(b"\x48\x8b\x05", slots["KeNumberProcessors"])
+        emit(b"\x0f\xb6\x00\x85\xc0"); fail_if_zero()
     emit(b"\x31\xc0\x48\x83\xc4\x30\x5b\xc3")
     failure = len(code)
     emit(b"\xb8\x01\x00\x00\xc0\x48\x83\xc4\x30\x5b\xc3")
     for offset in branches:
         struct.pack_into("<i", code, offset, failure - offset - 4)
-    assert len(code) <= 512
+    assert len(code) <= text_size
     data[0x200:0x200 + len(code)] = code
     put(0x2900, struct.pack("<I", 0xA1B2C3D4))
     put(0x2940, "A€😀\0".encode("utf-16-le"))
     put(0x29C0, "KeSetEvent\0".encode("utf-16-le"))
+    if extensions:
+        put(0x2A40, b"copied\0")
     relocation = struct.pack("<II", 0x1000, 8)  # RIP-relative code needs no absolute fixups
-    data[0x1400:0x1408] = relocation
+    data[relocation_offset:relocation_offset + 8] = relocation
     struct.pack_into("<II", data, 0x98 + 112 + 5 * 8, 0x3000, len(relocation))
     for index, (name, rva, offset, raw_size, virtual_size, flags) in enumerate((
-        (b".text", 0x1000, 0x200, 512, len(code), 0x60000020),
-        (b".data", 0x2000, 0x400, 4096, 4096, 0xC0000040),
-        (b".reloc", 0x3000, 0x1400, 512, 8, 0x42000040),
+        (b".text", 0x1000, 0x200, text_size, len(code), 0x60000020),
+        (b".data", 0x2000, data_offset, 4096, 4096, 0xC0000040),
+        (b".reloc", 0x3000, relocation_offset, 512, 8, 0x42000040),
     )):
         struct.pack_into("<8sIIIIIIHHI", data, 0x188 + index * 40, name, virtual_size, rva,
                          raw_size, offset, 0, 0, 0, 0, flags)
@@ -133,5 +157,6 @@ def make_image(*, missing_import=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--extensions", action="store_true", help="Also exercise pushlocks, CRT, stack probing and a data import")
     args = parser.parse_args()
-    raise SystemExit(write_image(args.output, make_image()))
+    raise SystemExit(write_image(args.output, make_image(extensions=args.extensions)))
